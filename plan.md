@@ -412,6 +412,24 @@ npm deps. `mieweb/ozwellai-api` (the Ozwell contract) is pinned the same way:
   the pin to the merged commit (and eventually to a published npm version once
   `@mieweb/cloud` distributes).
 
+**Local-target capability gaps go upstream, not into Jerry.** Because the default
+and portability-anchor target is `local` (§4/§12), Jerry will be the first thing
+to exercise `@mieweb/cloud`'s **local Node harness** for agent-shaped workloads —
+and it *will* surface gaps: Durable-Object **alarm** semantics and re-entrancy,
+`queue` delivery/ack, DO-storage durability across dormancy, `CloudDatabase`/
+`CloudVectorIndex` parity with the Cloudflare behaviors, and the `hostAgent` event
+lifecycle itself. The rule when a capability is **missing or wrong on the local
+target**:
+
+1. **Fix it in `vendor/cloud` (or `vendor/footnote`), never patch around it in
+   Jerry.** A workaround in `packages/*` is a portability bug in disguise — it
+   hides the gap and breaks the "same code, every target" invariant (§12).
+2. Develop the fix on the submodule branch, prove it with a **failing→passing
+   test in `@mieweb/cloud`'s own suite** (not only Jerry's), then open an
+   **upstream PR** to `mieweb/cloud`.
+3. Bump Jerry's submodule pin to the branch commit; move to the merged commit when
+   the PR lands. Track every such PR in §16.7.
+
 Why: this forces the platform abstractions to be validated by a real consumer
 before they ossify, while keeping the option to extract them cleanly. The cost is
 submodule discipline (pin hygiene, branch tracking) — acceptable for the
@@ -546,3 +564,118 @@ hidden host coupling from creeping into Jerry.
   tool globally, or the model's tool selection degrades.
 - **`cwd` is contextual, not authoritative**: `jerry i just made this pr` sends
   the folder as a hint; the agent must still verify (git state) before acting.
+
+---
+
+## 16. Execution checklist (developer scorecard)
+
+> This section is the **operational tracker**. Each `[ ]` is a unit of developer
+> performance; check it only when its acceptance note holds. Tasks are grouped
+> into **milestones**; every milestone ends with a **commit gate** (§16.1) and a
+> single conventional commit. Check the milestone's commit box only after the gate
+> is green and the commit is pushed.
+
+### 16.1 The commit gate (run before *every* milestone commit)
+
+Every commit is preceded by one command — `pnpm run ci` — a **script-first**
+wrapper (per repo guidelines) that GitHub Actions also runs unchanged, so CI
+failures reproduce locally bit-for-bit. The gate runs these stages **in order**;
+a red stage blocks the commit:
+
+```mermaid
+flowchart LR
+    Lint["1 · lint<br/>eslint + prettier --check"] --> Compile["2 · compile<br/>tsc --noEmit"]
+    Compile --> Test["3 · test<br/>unit + portability suite"]
+    Test --> Docs["4 · docs<br/>regenerate + verify clean"]
+    Docs --> Build["5 · build<br/>pnpm build (all packages)"]
+    Build --> Commit["✅ commit + push"]
+    classDef gate fill:#e6f3ff,stroke:#0366d6;
+    class Lint,Compile,Test,Docs,Build gate;
+```
+
+- [ ] **G0 — Scripts exist and are wired before any milestone is committed.**
+  - [ ] `scripts/lint.sh` → `eslint . && prettier --check .`
+  - [ ] `scripts/compile.sh` → `tsc -b --noEmit` across the workspace
+  - [ ] `scripts/test.sh` → unit tests + the portability suite (§12)
+  - [ ] `scripts/docs.sh` → regenerate `docs/` artifacts, then `git diff --exit-code docs/` (fails if docs are stale)
+  - [ ] `scripts/build.sh` → `pnpm -r build`
+  - [ ] `scripts/ci.sh` → runs the five above **in order**; `package.json` exposes `pnpm run ci`
+  - [ ] `.github/workflows/ci.yml` is a thin wrapper that calls `scripts/ci.sh` (no logic in YAML)
+
+**Commit gate contract** — for each milestone below, "**Commit**" means:
+
+1. `pnpm run ci` is green (lint → compile → test → docs → build).
+2. `docs/` is updated for the milestone (the gate enforces this) — see §16.2.
+3. One conventional commit (`feat:` / `chore:` / `docs:`), then `git push`.
+
+### 16.2 The `docs/` discipline
+
+`docs/` is a **first-class, committed artifact**, never a junk drawer (repo
+folder philosophy). Each milestone updates it:
+
+- [ ] `docs/README.md` — index/anchor explaining what lives in `docs/` and why.
+- [ ] `docs/decisions/` — one short ADR per non-obvious choice (e.g. "DuckDB rejected from portable core", "submodule co-evolution").
+- [ ] `docs/progress.md` — a mirror of this checklist's milestone status, updated at each commit (the human-readable scorecard).
+- [ ] `docs/architecture.md` — keeps the Mermaid diagrams from §2/§7 in sync when structure changes.
+
+### 16.3 Milestone M0 — Foundations *(maps to §13 Phase 0)*
+
+- [ ] Initialize `mieweb/jerry`: pnpm workspaces, strict TS, base `tsconfig`, eslint + prettier.
+- [ ] Add submodules `vendor/cloud`, `vendor/footnote`, `vendor/ozwellai-api` (pinned, §9).
+- [ ] Add deps: Vercel AI SDK (local/byo-cloud loop) + Ozwell client (`ozwellai` / `@mieweb/ozwellai`).
+- [ ] Define the `AgentRuntime` port + `resolveRuntime(profile)`; ship the `local` (Ollama) backend as default.
+- [ ] Privacy-profile config (`runtime`/`model`/`egress`/`tools`, default `local`/`deny`, §4) with a parser + validation.
+- [ ] Wire `mieweb` CLI + `wrangler.jsonc` + `mieweb.jsonc` (default target `local`).
+- [ ] AW aggregation **pure functions** in `packages/tools`, each unit-tested: `buildActivitySummary`, `resolveActivityRange`, `resolveRangeHours`, `pickBucket`, `formatActivityContext`, `isWorkRelatedUrl`, `aggregateMeetingSessions`, `aggregateTopActivities/WebLinks`.
+- [ ] **Commit gate G0 scripts/workflow in place and green.**
+- [ ] **▶ Commit M0** — `chore: foundations (workspaces, runtime port, AW pure fns)` *(gate green, docs updated, pushed).*
+
+### 16.4 Milestone M1 — Event host + Jerry MVP *(maps to §13 Phase 1)*
+
+- [ ] `@mieweb/cloud-agent` `hostAgent` in `vendor/cloud` (branch → PR): DO event host — wakes on `fetch`/`queue`, sets/handles alarms, persists suspend/resume, wired to `CloudDatabase` + `CloudQueue`. *(blocks the rest of M1)*
+- [ ] `packages/jerry-app`: worker `fetch`/`queue`/`scheduled` + `AgentSession` DO + backend-agnostic Jerry agent definition dispatched via `resolveRuntime(profile)`.
+- [ ] Event model + summaries on `CloudDatabase`; session→conversation mapping; queue-driven turns; suspend/resume (`waiting_for_user`) via DO state (§7).
+- [ ] Tools offered via tool-calling/MCP: AW (reads collector events), footnote (`CloudVectorIndex` ingest + search), files; scheduler = DO alarm.
+- [ ] `packages/collector` sidecar: watch folder + poll AW → push to Jerry.
+- [ ] `packages/cli`: `--call` (default), `-txt`/`--put`, `--help/--version/--debug`, `--report`, `--config`; local/remote resolution; agent-name-as-binary (§8).
+- [ ] **Portability invariant verified**: same suite green on `local` and `mieweb` targets (§12).
+- [ ] Acceptance walkthrough steps 1–5 (§14) pass.
+- [ ] **▶ Commit M1** — `feat: event host + Jerry MVP (suspend/resume, tools, CLI)` *(gate green, docs + ADRs updated, pushed).*
+
+### 16.5 Milestone M2 — Capture & reach *(maps to §13 Phase 2)*
+
+- [ ] MCP: consume external MCP servers; expose Jerry tools as MCP.
+- [ ] Integrations as gated tools (§4): Google Drive (read), YouTube (post/fetch), Time Huddle (read/post) — each with `ask`/`allow` egress + HITL approval.
+- [ ] Webhook event source via native `fetch` handler.
+- [ ] SQL summary rollups (daily/weekly) + self-scheduled digests via DO alarm; optional **local-only** DuckDB analytics (never in portable core, §10).
+- [ ] Deploy to `mieweb/os` (self-hosted) and Cloudflare; mobile thin client.
+- [ ] Local models: Ollama embeddings (footnote) / CloudAI backend.
+- [ ] **▶ Commit M2** — `feat: capture & reach (MCP, integrations, deploy targets)` *(gate green, docs updated, pushed).*
+- [ ] **Upstream**: open the `@mieweb/cloud-agent` PR to `mieweb/cloud`; footnote fixes as PRs; move submodule pins to merged commits (§9). **▶ Commit** — `chore: bump submodule pins to merged upstream`.
+
+### 16.6 Standing rules (apply to every task above)
+
+- [ ] **Smallest viable change** per commit; no sweeping multi-package edits unless the task is explicitly cross-cutting.
+- [ ] **No commit skips the gate.** Never `--no-verify`; fix red stages instead.
+- [ ] **Docs move with code.** A code change that outdates `docs/` is incomplete until `scripts/docs.sh` passes.
+- [ ] **Dead code** is deleted or moved to `.attic/` with a reason, not left in place.
+- [ ] **Local-target gaps go upstream (§9).** If a needed agent capability is missing or wrong on the `local` harness, fix it in `vendor/cloud`/`vendor/footnote` and open a PR — never work around it in `packages/*`.
+
+### 16.7 `vendor/cloud` upstream PR tracker
+
+Every capability Jerry needs from `@mieweb/cloud` that is **missing or broken on
+the `local` target** is fixed in the submodule and shipped as an upstream PR.
+Track each here (one row per PR) so pin bumps and merges are auditable (§9):
+
+| Capability gap (local target) | Where | Branch | PR | Pin moved to merged? |
+| --- | --- | --- | --- | --- |
+| `hostAgent` event host (wake/sleep, suspend/resume) | `vendor/cloud` | `feat/cloud-agent-host` | _link_ | [ ] |
+| DO **alarm** precision + re-entrancy on local harness | `vendor/cloud` | _tbd_ | _link_ | [ ] |
+| `queue` delivery/ack semantics on local harness | `vendor/cloud` | _tbd_ | _link_ | [ ] |
+| DO-storage durability across dormancy (local) | `vendor/cloud` | _tbd_ | _link_ | [ ] |
+| `CloudDatabase` parity (local vs CF) for event log | `vendor/cloud` | _tbd_ | _link_ | [ ] |
+| `CloudVectorIndex` parity (footnote-backed) on local | `vendor/footnote` | _tbd_ | _link_ | [ ] |
+
+- [ ] **Discovery rule**: when a task in M0–M2 is blocked by a local-target gap, add a row here **before** writing any Jerry-side code, then fix it upstream.
+- [ ] **Definition of done for a row**: failing→passing test in the submodule's own suite, PR opened, Jerry pin bumped, portability invariant (§12) re-verified.
+- [ ] **Pin-bump commits** are their own conventional commits — `chore: bump vendor/cloud pin (<capability>)` — separate from Jerry feature commits.
