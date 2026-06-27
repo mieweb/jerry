@@ -473,6 +473,18 @@ hidden host coupling from creeping into Jerry.
 
 ## 13. Phased delivery
 
+### M1 — Planning & execution discipline (**done**)
+
+- [x] Create and maintain a `docs/` workspace for execution artifacts and progress
+  notes.
+- [x] Maintain a step-by-step plan with explicit checkboxes to track progress and
+  developer execution quality.
+- [x] Define pre-commit flow for every meaningful change: **lint → compile/typecheck
+  → update docs impacted by the change → build**.
+- [x] Route missing platform capability work through submodule branches and upstream
+  PRs (especially `vendor/cloud`).
+- [x] Keep phase scope explicit and traceable to acceptance criteria.
+
 ### Phase 0 — Foundations
 - Initialize `mieweb/jerry`; pnpm workspaces; strict TS; lint/CI.
 - Add submodules `vendor/cloud`, `vendor/footnote`, `vendor/ozwellai-api`; consume
