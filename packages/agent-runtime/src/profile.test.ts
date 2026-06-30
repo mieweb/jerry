@@ -21,8 +21,9 @@ describe("DEFAULT_PRIVACY_PROFILE", () => {
 
   it("has default tool dispositions", () => {
     assert.deepEqual(DEFAULT_PRIVACY_PROFILE.tools, {
-      aw: "local",
-      footnote: "local",
+      summarize_activity: "local",
+      search_memory: "local",
+      schedule_followup: "local",
       drive: "ask",
       youtube: "ask",
     });

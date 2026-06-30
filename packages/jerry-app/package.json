@@ -16,13 +16,14 @@
     }
   },
   "scripts": {
-    "dev": "mieweb --target local dev",
+    "dev": "NODE_OPTIONS='--import tsx' mieweb --target local dev",
     "dev:cf": "mieweb dev",
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@mieweb/cloud-agent": "workspace:*",
-    "@mieweb/jerry-agent-runtime": "workspace:*"
+    "@mieweb/jerry-agent-runtime": "workspace:*",
+    "@mieweb/jerry-tools": "workspace:*"
   },
   "devDependencies": {
     "@mieweb/cli": "workspace:*",

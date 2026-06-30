@@ -10,7 +10,8 @@
  */
 
 import { hostAgent } from "@mieweb/cloud-agent";
-import { resolveRuntime, DEFAULT_PRIVACY_PROFILE } from "@mieweb/jerry-agent-runtime";
+import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
+import { createJerryTools } from "@mieweb/jerry-tools/runtime";
 import { jerry } from "../src/agent.ts";
 
 /**
@@ -20,10 +21,9 @@ import { jerry } from "../src/agent.ts";
 const host = hostAgent({
   agent: jerry,
   createRuntime: (profile) => {
-    // Use provided profile or fall back to default
-    const resolvedProfile = profile ?? DEFAULT_PRIVACY_PROFILE;
-    return resolveRuntime(resolvedProfile);
+    return resolveRuntime(mergeProfile(profile));
   },
+  createTools: createJerryTools,
   store: {
     // Store bindings are resolved from env at request time
     // This is a placeholder; actual db/vectors come from env

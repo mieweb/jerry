@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20240620.0
+        version: 4.20260630.1
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.4
@@ -66,6 +69,9 @@ importers:
       '@mieweb/jerry-agent-runtime':
         specifier: workspace:*
         version: link:../agent-runtime
+      '@mieweb/jerry-tools':
+        specifier: workspace:*
+        version: link:../tools
     devDependencies:
       '@mieweb/cli':
         specifier: workspace:*
@@ -421,6 +427,9 @@ packages:
   '@aws/lambda-invoke-store@0.2.4':
     resolution: {integrity: sha512-iY8yvjE0y651BixKNPgmv1WrQc+GZ142sb0z4gYnChDDY2YqI4P/jsSopBWrKfAt7LOJAkOXt7rC/hms+WclQQ==}
     engines: {node: '>=18.0.0'}
+
+  '@cloudflare/workers-types@4.20260630.1':
+    resolution: {integrity: sha512-yl+c9vwvko9UZ0frmtsHuwOh3BRHvNjLrfelAp5Akpqe1+Ho1UWekr3nmjJ1D64CH0Yb0K0oRMV4i7npOFzsog==}
 
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
@@ -2921,6 +2930,8 @@ snapshots:
 
   '@aws/lambda-invoke-store@0.2.4':
     optional: true
+
+  '@cloudflare/workers-types@4.20260630.1': {}
 
   '@colors/colors@1.6.0': {}
 

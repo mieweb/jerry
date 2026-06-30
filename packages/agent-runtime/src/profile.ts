@@ -22,7 +22,13 @@ export const DEFAULT_PRIVACY_PROFILE: PrivacyProfile = {
   runtime: "local",
   model: "ollama:qwen2.5",
   egress: "deny",
-  tools: { aw: "local", footnote: "local", drive: "ask", youtube: "ask" },
+  tools: {
+    summarize_activity: "local",
+    search_memory: "local",
+    schedule_followup: "local",
+    drive: "ask",
+    youtube: "ask",
+  },
 };
 
 /**
