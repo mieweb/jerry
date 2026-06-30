@@ -19,11 +19,11 @@ Set up the monorepo skeleton: pnpm workspaces, strict TypeScript, ESLint, Node t
 
 Add platform dependencies as git submodules under `vendor/`.
 
-- [ ] `vendor/cloud` → `mieweb/cloud`
-- [ ] `vendor/footnote` → `mieweb/melvil-artipod-footnote`
-- [ ] `vendor/ozwellai-api` → `mieweb/ozwellai-api`
-- [ ] README: document `git submodule update --init --recursive`
-- [ ] Wire workspace references for local imports
+- [x] `vendor/cloud` → `mieweb/cloud`
+- [x] `vendor/footnote` → `mieweb/melvil-artipod-footnote`
+- [x] `vendor/ozwellai-api` → `mieweb/ozwellai-api`
+- [x] README: document `git submodule update --init --recursive`
+- [x] Wire workspace references for local imports
 
 **PR:** <!-- link when merged -->
 

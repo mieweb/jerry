@@ -14,7 +14,7 @@ Introducing Jerry: The Ozwell Agent That Explains Your Work—So You Don’t Hav
 ### Setup
 
 ```bash
-# Clone with submodules (once vendor/ is added)
+# Clone with submodules
 git clone --recurse-submodules https://github.com/mieweb/jerry.git
 cd jerry
 
@@ -46,6 +46,33 @@ packages/
   cli/           # Message-first CLI (jerry binary)
 vendor/          # Git submodules: @mieweb/cloud, footnote, ozwellai-api
 ```
+
+### Vendor submodules
+
+Platform dependencies live in `vendor/` as git submodules for co-evolution (see [plan.md §9](plan.md)):
+
+| Path | Upstream | Key packages |
+|------|----------|--------------|
+| `vendor/cloud` | [mieweb/cloud](https://github.com/mieweb/cloud) | `@mieweb/cloud`, `@mieweb/cli`, cloud-local/os/types/workers |
+| `vendor/footnote` | [mieweb/melvil-artipod-footnote](https://github.com/mieweb/melvil-artipod-footnote) | `@mieweb/footnote` |
+| `vendor/ozwellai-api` | [mieweb/ozwellai-api](https://github.com/mieweb/ozwellai-api) | `ozwellai`, `@mieweb/ozwellai-spec` |
+
+After cloning or pulling, ensure submodules are initialized:
+
+```bash
+git submodule update --init --recursive
+```
+
+To develop upstream features, work on a branch inside the submodule:
+
+```bash
+cd vendor/cloud
+git checkout -b feature/my-change
+# make changes, commit, push to upstream
+# then in jerry root, commit the new submodule SHA
+```
+
+Jerry packages do not yet depend on vendor packages; `workspace:*` wiring lands in later Phase 0 slices.
 
 ---
 
