@@ -1,0 +1,22 @@
+{
+  "name": "@mieweb/jerry-agent-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jerry agent runtime: AgentRuntime port, privacy profiles, local/byo-cloud/ozwell backends",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "ai": "^4.3.0",
+    "@ai-sdk/openai-compatible": "^0.2.0",
+    "zod": "^3.23.0"
+  }
+}

@@ -16,5 +16,8 @@
   },
   "scripts": {
     "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@mieweb/cloud-agent-cli": "workspace:*"
   }
 }

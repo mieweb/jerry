@@ -11,7 +11,17 @@
       "default": "./src/index.ts"
     }
   },
+  "bin": {
+    "jerry-collector": "./bin/collector.js"
+  },
   "scripts": {
+    "dev": "tsx src/cli.ts",
     "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
   }
 }

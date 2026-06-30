@@ -1,0 +1,45 @@
+{
+  // wrangler.jsonc is the source of truth for your bindings. On the cloudflare
+  // target `mieweb` forwards verbatim to wrangler; other targets read these
+  // shapes and back each binding with an adapter (see mieweb.jsonc).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mieweb-jerry",
+  "main": "packages/jerry-app/worker/index.mjs",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Database: events, sessions, messages, summaries
+  "d1_databases": [
+    { "binding": "DB", "database_name": "mieweb-jerry", "database_id": "local-mieweb-jerry" }
+  ],
+
+  // Cache: temporary storage
+  "kv_namespaces": [{ "binding": "CACHE", "id": "local-mieweb-jerry-cache" }],
+
+  // Object storage: file uploads from collector
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "mieweb-jerry-files" }],
+
+  // Queue: async turn processing
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "mieweb-jerry-turns" }],
+    "consumers": [{ "queue": "mieweb-jerry-turns", "max_batch_size": 1 }]
+  },
+
+  // Durable Object: AgentSession for turn lifecycle
+  "durable_objects": {
+    "bindings": [{ "name": "SESSION", "class_name": "AgentSession" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["AgentSession"] }
+  ],
+
+  // D1 migrations directory
+  // Note: run `wrangler d1 migrations apply` or the harness applies them automatically
+
+
+  // Vector index: footnote semantic search
+  "vectorize": [{ "binding": "VECTORS", "index_name": "mieweb-jerry-vectors" }],
+
+  // AI: model inference (optional, falls back to local Ollama)
+  "ai": { "binding": "AI" }
+}
