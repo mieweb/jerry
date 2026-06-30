@@ -8,12 +8,12 @@ This document tracks Phase 0 implementation progress. See [plan.md §13](../../p
 
 Set up the monorepo skeleton: pnpm workspaces, strict TypeScript, ESLint, Node test runner, script-first CI, four package stubs.
 
-- [ ] Root tooling: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `tsconfig.json`, `eslint.config.js`
-- [ ] Package skeletons: `jerry-app`, `tools`, `collector`, `cli` with placeholder exports and tests
-- [ ] CI: `scripts/ci.sh` + `.github/workflows/ci.yml`
-- [ ] Documentation: this file, README Development section
+- [x] Root tooling: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `tsconfig.json`, `eslint.config.js`
+- [x] Package skeletons: `jerry-app`, `tools`, `collector`, `cli` with placeholder exports and tests
+- [x] CI: `scripts/ci.sh` + `.github/workflows/ci.yml`
+- [x] Documentation: this file, README Development section
 
-**PR:** <!-- link when merged -->
+**PR:** https://github.com/mieweb/jerry/pull/2 (merged into `development`)
 
 ### submodules
 
