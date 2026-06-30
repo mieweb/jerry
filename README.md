@@ -4,6 +4,34 @@ Introducing Jerry: The Ozwell Agent That Explains Your Work—So You Don’t Hav
 
 ---
 
+
+## Quick start
+
+Jerry runs as three local processes: **worker** (agent), **collector** (ActivityWatch ingest), and **CLI** (your prompts). You need a **tool-capable** Ollama model (`qwen2.5:3b` or `llama3.2:3b` — not `gemma3:4b`).
+
+```bash
+# Setup (once)
+git submodule update --init --recursive && pnpm install
+OLLAMA_DOWNLOAD_PARTS=1 ollama pull qwen2.5:3b
+
+# Terminal 1 — worker
+pnpm dev
+
+# Terminal 2 — collector (ActivityWatch must be running on localhost:5600)
+pnpm --filter @mieweb/jerry-collector dev
+
+# Terminal 3 — talk to Jerry
+export JERRY_MODEL=ollama:qwen2.5:3b
+export NODE_OPTIONS='--import tsx'
+node packages/cli/bin/jerry.js --debug summarize my last 2 hours
+```
+
+Verify the worker: `curl http://localhost:8787/health`
+
+See [docs/chats/chat8 - running_the_program.md](docs/chats/chat8%20-%20running_the_program.md) for troubleshooting (model selection, tool errors, session resume).
+
+---
+
 ## Development
 
 ### Prerequisites
