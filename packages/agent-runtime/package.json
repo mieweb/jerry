@@ -1,13 +1,10 @@
 {
-  "name": "@mieweb/jerry-cli",
+  "name": "@mieweb/jerry-agent-runtime",
   "version": "0.0.0",
   "private": true,
-  "description": "Jerry message-first CLI; thin bin over @mieweb/cloud-agent-cli",
+  "description": "Jerry agent runtime: AgentRuntime port, privacy profiles, local/byo-cloud/ozwell backends",
   "type": "module",
   "license": "MIT",
-  "bin": {
-    "jerry": "./bin/jerry.js"
-  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -18,6 +15,8 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@mieweb/cloud-agent-cli": "workspace:*"
+    "ai": "^4.3.0",
+    "@ai-sdk/openai-compatible": "^0.2.0",
+    "zod": "^3.23.0"
   }
 }

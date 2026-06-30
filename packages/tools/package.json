@@ -9,9 +9,18 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime/index.ts",
+      "default": "./src/runtime/index.ts"
     }
   },
   "scripts": {
     "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "ai": "^4.0.0",
+    "zod": "^3.23.0",
+    "@mieweb/cloud-types": "workspace:*"
   }
 }

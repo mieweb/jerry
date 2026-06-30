@@ -4,6 +4,7 @@ This folder contains the Jerry monorepo packages. See [plan.md §6](../plan.md) 
 
 | Folder | Package | Phase | Role |
 |--------|---------|-------|------|
+| `agent-runtime/` | `@mieweb/jerry-agent-runtime` | 0 | L1 runtime port: AgentRuntime interface, privacy profiles, local/byo-cloud/ozwell backends |
 | `jerry-app/` | `@mieweb/jerry-app` | 1 | Worker: fetch/queue/scheduled + AgentSession DO + agent definition |
 | `tools/` | `@mieweb/jerry-tools` | 0 | AW aggregation + footnote + file tools |
 | `collector/` | `@mieweb/jerry-collector` | 1 | Local sidecar: folder/screenshot watch + AW poll → push events |

@@ -31,7 +31,8 @@ pnpm install
 pnpm typecheck   # Type-check all packages
 pnpm lint        # Lint all packages
 pnpm test        # Run tests in all packages
-pnpm ci          # Run full CI locally (same as GitHub Actions)
+pnpm run ci      # Run full CI locally (same as GitHub Actions)
+                 # Note: use `run` — pnpm reserves `pnpm ci` for its own (unimplemented) command
 ```
 
 ### Repository layout
@@ -72,7 +73,20 @@ git checkout -b feature/my-change
 # then in jerry root, commit the new submodule SHA
 ```
 
-Jerry packages do not yet depend on vendor packages; `workspace:*` wiring lands in later Phase 0 slices.
+### Local development
+
+Start the Jerry worker on the local harness (SQLite + in-memory KV, no external services):
+
+```bash
+pnpm dev
+```
+
+This runs on `http://localhost:8787`. Verify with:
+
+```bash
+curl localhost:8787/health
+# {"status": "ok", "package": "@mieweb/jerry-app"}
+```
 
 ---
 

@@ -9,9 +9,23 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./agent": {
+      "types": "./src/agent.ts",
+      "default": "./src/agent.ts"
     }
   },
   "scripts": {
+    "dev": "mieweb --target local dev",
+    "dev:cf": "mieweb dev",
     "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@mieweb/cloud-agent": "workspace:*",
+    "@mieweb/jerry-agent-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@mieweb/cli": "workspace:*",
+    "@mieweb/cloud-local": "workspace:*"
   }
 }
