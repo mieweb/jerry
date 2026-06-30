@@ -1,0 +1,17 @@
+{
+  "name": "@mieweb/jerry-collector",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jerry local sidecar: folder/screenshot watch + ActivityWatch poll → push events",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@mieweb/jerry-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jerry tools: AW aggregation, footnote search, file operations, scheduler",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  }
+}

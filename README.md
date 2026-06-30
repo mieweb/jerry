@@ -2,6 +2,53 @@
 
 Introducing Jerry: The Ozwell Agent That Explains Your Work—So You Don’t Have To
 
+---
+
+## Development
+
+### Prerequisites
+
+- **Node.js** >= 22.16.0
+- **pnpm** 10.17.1 (will be installed automatically via corepack if you have Node 22+)
+
+### Setup
+
+```bash
+# Clone with submodules (once vendor/ is added)
+git clone --recurse-submodules https://github.com/mieweb/jerry.git
+cd jerry
+
+# Or if already cloned:
+git submodule update --init --recursive
+
+# Install dependencies
+pnpm install
+```
+
+### Commands
+
+```bash
+pnpm typecheck   # Type-check all packages
+pnpm lint        # Lint all packages
+pnpm test        # Run tests in all packages
+pnpm ci          # Run full CI locally (same as GitHub Actions)
+```
+
+### Repository layout
+
+See [plan.md §6](plan.md) for architecture details.
+
+```
+packages/
+  jerry-app/     # Worker: fetch/queue/scheduled + AgentSession DO
+  tools/         # AW aggregation, footnote, file tools
+  collector/     # Local sidecar: folder watch + AW poll
+  cli/           # Message-first CLI (jerry binary)
+vendor/          # Git submodules: @mieweb/cloud, footnote, ozwellai-api
+```
+
+---
+
 **“Show me the money.”**  
 For knowledge workers, creators, and developers, the hardest part of the job often isn’t the work itself—it’s explaining the value of that work afterward.
 
