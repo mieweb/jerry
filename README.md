@@ -1,9 +1,8 @@
-*Working Backwards: Jerry \- the Ozwell Agent Agent for Knowledge Workers*
+_Working Backwards: Jerry \- the Ozwell Agent Agent for Knowledge Workers_
 
 Introducing Jerry: The Ozwell Agent That Explains Your Work—So You Don’t Have To
 
 ---
-
 
 ## Quick start
 
@@ -80,11 +79,11 @@ vendor/          # Git submodules: @mieweb/cloud, footnote, ozwellai-api
 
 Platform dependencies live in `vendor/` as git submodules for co-evolution (see [plan.md §9](plan.md)):
 
-| Path | Upstream | Key packages |
-|------|----------|--------------|
-| `vendor/cloud` | [mieweb/cloud](https://github.com/mieweb/cloud) | `@mieweb/cloud`, `@mieweb/cloud-agent`, `@mieweb/cloud-agent-cli`, `@mieweb/cli`, cloud-local/os/types/workers |
-| `vendor/footnote` | [mieweb/melvil-artipod-footnote](https://github.com/mieweb/melvil-artipod-footnote) | `@mieweb/footnote` |
-| `vendor/ozwellai-api` | [mieweb/ozwellai-api](https://github.com/mieweb/ozwellai-api) | `ozwellai`, `@mieweb/ozwellai-spec` |
+| Path                  | Upstream                                                                            | Key packages                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `vendor/cloud`        | [mieweb/cloud](https://github.com/mieweb/cloud)                                     | `@mieweb/cloud`, `@mieweb/cloud-agent`, `@mieweb/cloud-agent-cli`, `@mieweb/cli`, cloud-local/os/types/workers |
+| `vendor/footnote`     | [mieweb/melvil-artipod-footnote](https://github.com/mieweb/melvil-artipod-footnote) | `@mieweb/footnote`                                                                                             |
+| `vendor/ozwellai-api` | [mieweb/ozwellai-api](https://github.com/mieweb/ozwellai-api)                       | `ozwellai`, `@mieweb/ozwellai-spec`                                                                            |
 
 After cloning or pulling, ensure submodules are initialized:
 
@@ -133,7 +132,7 @@ Inspired by the spirit of [**Jerry Maguire**](https://www.youtube.com/watch?v=yR
 
 Modern work is fragmented, contextual, and cognitively demanding. A developer may spend four days untangling a deeply rooted bug and produce a [single character of code](https://www.youtube.com/watch?v=E3_95BZYIVs&t=424s). A product builder may context-switch between architecture, customer calls, research, and experimentation—only to be asked at the end of the week:
 
-*“So… what did you actually do?”*
+_“So… what did you actually do?”_
 
 This constant requirement to retrospectively justify time is not just tedious—it’s fundamentally flawed. It rewards visible output over meaningful progress and penalizes deep thinking, problem-solving, and creative work.
 
@@ -145,10 +144,10 @@ This constant requirement to retrospectively justify time is not just tedious—
 
 Instead of forcing workers to manually reconstruct their day, Jerry analyzes signals across tools, contexts, and time to understand:
 
-* What were you working on  
-* Why it mattered  
-* What obstacles did you navigate  
-* How your effort moved the organization forward
+- What were you working on
+- Why it mattered
+- What obstacles did you navigate
+- How your effort moved the organization forward
 
 Jerry doesn’t just summarize activity—it **interprets contribution**.
 
@@ -158,10 +157,10 @@ Jerry doesn’t just summarize activity—it **interprets contribution**.
 
 Jerry is designed for people who:
 
-* Context-switch between deep work, collaboration, and personal life  
-* Create value that isn’t immediately measurable  
-* Are tired of writing status updates that undersell their impact  
-* Want fairer, more accurate representations of their work
+- Context-switch between deep work, collaboration, and personal life
+- Create value that isn’t immediately measurable
+- Are tired of writing status updates that undersell their impact
+- Want fairer, more accurate representations of their work
 
 While Jerry functions as a **developer agent** and **job agent**, its audience is broader: anyone whose output is judged by simplistic metrics but whose value lies in thinking, problem-solving, and execution.
 
@@ -171,10 +170,10 @@ While Jerry functions as a **developer agent** and **job agent**, its audience i
 
 Internally, Jerry operates as a specialized Ozwell agent:
 
-1. An activity watch captures behavioral and contextual signals  
-2. A structured internal function call feeds this data into **Jerry**  
+1. An activity watch captures behavioral and contextual signals
+2. A structured internal function call feeds this data into **Jerry**
 3. Jerry analyzes the data with a single objective:  
-   **articulate the value you bring to the organization**  
+   **articulate the value you bring to the organization**
 4. The output is a clear, human-readable narrative suitable for managers, reviews, and leadership visibility
 
 The result is a defensible, intelligible explanation of work that aligns effort with impact.
@@ -200,7 +199,7 @@ Or, as Jerry himself might put it:
 ### **TimeHarbor \= “declared intent \+ reflection”**
 
 ![][image1]  
-TimeHarbor is already positioned as “privacy-first time tracking and reflection,” with *clock-in/out, project/objective allocation, reflections/notes, user-controlled sharing, and reporting* baked into the product framing. ([GitHub](https://github.com/mieweb/timeharbor)) So TimeHarbor should be Jerry’s **source of intent** (what I meant to do) and **self-reported outcomes/obstacles** (what happened, why it mattered).
+TimeHarbor is already positioned as “privacy-first time tracking and reflection,” with _clock-in/out, project/objective allocation, reflections/notes, user-controlled sharing, and reporting_ baked into the product framing. ([GitHub](https://github.com/mieweb/timeharbor)) So TimeHarbor should be Jerry’s **source of intent** (what I meant to do) and **self-reported outcomes/obstacles** (what happened, why it mattered).
 
 ### **ActivityWatch \= “observed behavior \+ context”**
 
@@ -223,27 +222,20 @@ Ozwell’s public API spec highlights real-time streaming (SSE), tooling, and se
 
 Jerry should produce **three tiers of output** from the same underlying data:
 
-1. **Daily narrative (manager-readable)**  
-     
-   * What I worked on (themes, not raw logs)  
-   * Why it mattered (impact framing)  
-   * Obstacles navigated (invisible work made visible)  
-   * Progress/outcomes (even if no “big ship”)
+1. **Daily narrative (manager-readable)**
+    - What I worked on (themes, not raw logs)
+    - Why it mattered (impact framing)
+    - Obstacles navigated (invisible work made visible)
+    - Progress/outcomes (even if no “big ship”)
 
-   
+2. **Evidence-backed appendix (defensible)**
+    - “Focus blocks” inferred from ActivityWatch
+    - TimeHarbor sessions mapped to those blocks
+    - Links to artifacts: PRs, docs, Pulse clips, tickets (as available)
 
-2. **Evidence-backed appendix (defensible)**  
-     
-   * “Focus blocks” inferred from ActivityWatch  
-   * TimeHarbor sessions mapped to those blocks  
-   * Links to artifacts: PRs, docs, Pulse clips, tickets (as available)
-
-   
-
-3. **Weekly / review-ready rollups**  
-     
-   * Trends: deep work %, collaboration %, context switching load  
-   * Highlights: “most valuable breakthroughs,” “risk reduced,” “speed gained.”
+3. **Weekly / review-ready rollups**
+    - Trends: deep work %, collaboration %, context switching load
+    - Highlights: “most valuable breakthroughs,” “risk reduced,” “speed gained.”
 
 ---
 
@@ -251,31 +243,29 @@ Jerry should produce **three tiers of output** from the same underlying data:
 
 ### **A. Local collection (user-controlled)**
 
-* **ActivityWatch** runs locally and collects events into buckets (window/afk/etc). ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))  
-* **TimeHarbor** logs deliberate sessions \+ user reflections. ([GitHub](https://github.com/mieweb/timeharbor))  
-* **Pulse** optionally records short clips (demo, recap, walkthrough) that are *local-first until shared*. ([GitHub](https://github.com/mieweb/pulse))
+- **ActivityWatch** runs locally and collects events into buckets (window/afk/etc). ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))
+- **TimeHarbor** logs deliberate sessions \+ user reflections. ([GitHub](https://github.com/mieweb/timeharbor))
+- **Pulse** optionally records short clips (demo, recap, walkthrough) that are _local-first until shared_. ([GitHub](https://github.com/mieweb/pulse))
 
 ### **B. Jerry Ingestion Service (your backend)**
 
 A small service (could be a Node/Fastify app since Ozwell ecosystem is already Node-friendly) that:
 
-* Pulls ActivityWatch events for a time window (ex, “today 00:00–23:59”)  
-* Pulls TimeHarbor sessions/notes for the same window  
-* Pulls shared PulseVault artifacts (or links) when present ([GitHub](https://github.com/mieweb/PulseVault))  
-* Normalizes everything into a **Jerry Daily Context Document (JSON)**
+- Pulls ActivityWatch events for a time window (ex, “today 00:00–23:59”)
+- Pulls TimeHarbor sessions/notes for the same window
+- Pulls shared PulseVault artifacts (or links) when present ([GitHub](https://github.com/mieweb/PulseVault))
+- Normalizes everything into a **Jerry Daily Context Document (JSON)**
 
 ### **C. Ozwell “Jerry” Agent (interpretation layer)**
 
-* Receives the Daily Context Document as structured input  
-    
-* Uses a consistent rubric to produce:  
-    
-  * value narrative  
-  * evidence appendix  
-  * suggested manager-facing bullets
+- Receives the Daily Context Document as structured input  
 
+- Uses a consistent rubric to produce:
+    - value narrative
+    - evidence appendix
+    - suggested manager-facing bullets
 
-* Streams output via SSE to UI (optional) ([GitHub](https://github.com/mieweb/ozwellai-api))
+- Streams output via SSE to UI (optional) ([GitHub](https://github.com/mieweb/ozwellai-api))
 
 ---
 
@@ -283,24 +273,24 @@ A small service (could be a Node/Fastify app since Ozwell ecosystem is already N
 
 Design this as an explicit schema so you can:
 
-* re-run narratives,  
-* Compare output quality,  
-* and ensure privacy controls are enforced.
+- re-run narratives,
+- Compare output quality,
+- and ensure privacy controls are enforced.
 
 Recommended top-level shape:
 
-* `identity`: userId, workspaceId, timezone  
-* `Privacy Policy`: What categories are allowed to leave the device  
-* `timeharbor`:  
-  * sessions: start/end, project/objective tags, reflections, user-declared “outcome.”  
-* `activitywatch`:  
-  * focusBlocks: merged window events excluding AFK, grouped by app/project heuristic  
-  * contextSwitching: switches/hour, meeting clusters, “interrupt density.”  
-* `artifacts`:  
-  * pulse: shared clips (id, title, tags, link, visibility)  
-  * links: PRs, issues, docs (optional integrations later)  
-* `orgContext`:  
-  * current goals / OKRs / project priorities (manual or pulled from your systems)
+- `identity`: userId, workspaceId, timezone
+- `Privacy Policy`: What categories are allowed to leave the device
+- `timeharbor`:
+    - sessions: start/end, project/objective tags, reflections, user-declared “outcome.”
+- `activitywatch`:
+    - focusBlocks: merged window events excluding AFK, grouped by app/project heuristic
+    - contextSwitching: switches/hour, meeting clusters, “interrupt density.”
+- `artifacts`:
+    - pulse: shared clips (id, title, tags, link, visibility)
+    - links: PRs, issues, docs (optional integrations later)
+- `orgContext`:
+    - current goals / OKRs / project priorities (manual or pulled from your systems)
 
 This is the core “function call” payload your press release references.
 
@@ -310,28 +300,27 @@ This is the core “function call” payload your press release references.
 
 ### **Step 1 — Build a timeline spine**
 
-* Start with ActivityWatch: build a day timeline from bucket events (window \+ afk). ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))  
-* Segment into **focus blocks** (continuous work in the same app/domain) and **collaboration blocks** (Zoom/Meet/Slack heavy segments).
+- Start with ActivityWatch: build a day timeline from bucket events (window \+ afk). ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))
+- Segment into **focus blocks** (continuous work in the same app/domain) and **collaboration blocks** (Zoom/Meet/Slack heavy segments).
 
 ### **Step 2 — Attach TimeHarbor intent & reflections**
 
-* For each TimeHarbor session, map to overlapping focus blocks.  
-* Use TimeHarbor as the “truth” for *what the work was supposed to be* and the user’s own summary/notes. ([GitHub](https://github.com/mieweb/timeharbor))
+- For each TimeHarbor session, map to overlapping focus blocks.
+- Use TimeHarbor as the “truth” for _what the work was supposed to be_ and the user’s own summary/notes. ([GitHub](https://github.com/mieweb/timeharbor))
 
 ### **Step 3 — Lift raw activity into “work themes”**
 
 Create a lightweight classifier that maps window titles/apps/URLs into:
 
-* project,  
-* work type (debugging, writing, planning, meeting, admin),  
-* “value category” (delivery, risk reduction, enablement, learning, support).
+- project,
+- work type (debugging, writing, planning, meeting, admin),
+- “value category” (delivery, risk reduction, enablement, learning, support).
 
 ### **Step 4 — Add Pulse as evidence (optional but high leverage)**
 
-* If the user recorded a 30–90s “end of block recap” clip in Pulse:  
-    
-  * treat it as the best available summary of what changed and why  
-  * Attach it to the relevant theme. Pulse is designed for secure institutional knowledge video with local-first handling, which aligns well with “share only what you choose.” ([GitHub](https://github.com/mieweb/pulse))
+- If the user recorded a 30–90s “end of block recap” clip in Pulse:
+    - treat it as the best available summary of what changed and why
+    - Attach it to the relevant theme. Pulse is designed for secure institutional knowledge video with local-first handling, which aligns well with “share only what you choose.” ([GitHub](https://github.com/mieweb/pulse))
 
 ---
 
@@ -341,30 +330,27 @@ Jerry should be constrained by a rubric so it doesn’t become a generic summari
 ![][image6]  
 **Inputs**
 
-* timeline \+ themes  
-* TimeHarbor reflections  
-* inferred obstacles (context switching spikes, repeated returns to the same repo/app, long “stuck” blocks)  
-* artifacts (Pulse clips, PR links, etc.)
+- timeline \+ themes
+- TimeHarbor reflections
+- inferred obstacles (context switching spikes, repeated returns to the same repo/app, long “stuck” blocks)
+- artifacts (Pulse clips, PR links, etc.)
 
 **Outputs**
 
-* “Value narrative” in org language:  
-    
-  * impact framing, tradeoffs, risks retired, options explored
+- “Value narrative” in org language:
+    - impact framing, tradeoffs, risks retired, options explored
 
+- “Manager bullets” (copy/paste)  
 
-* “Manager bullets” (copy/paste)  
-    
-* “Evidence appendix” (defensible mapping back to signals)  
-    
-* “Follow-ups,” Jerry suggests:  
-    
-  * things to document, people to update, risks to flag
+- “Evidence appendix” (defensible mapping back to signals)  
+
+- “Follow-ups,” Jerry suggests:
+    - things to document, people to update, risks to flag
 
 **Guardrails**
 
-* Never expose raw window titles/URLs unless the user explicitly opts in  
-* Default to aggregating to themes (“debugged auth flow”), not surveillance (“spent 47 min in file X”)
+- Never expose raw window titles/URLs unless the user explicitly opts in
+- Default to aggregating to themes (“debugged auth flow”), not surveillance (“spent 47 min in file X”)
 
 ---
 
@@ -374,15 +360,14 @@ TimeHarbor explicitly emphasizes “private by default” and user-controlled sh
 
 So implement privacy as a **policy engine** inside Jerry Ingestion:
 
-* Local-only vs exportable fields  
-    
-* Redaction rules (URLs, window titles, filenames)  
-    
-* “Share modes”:  
-    
-  1. **Private journal** (full fidelity, local)  
-  2. **Manager summary** (aggregated, redacted)  
-  3. **Evidence pack** (includes links/artifacts user-approved)
+- Local-only vs exportable fields  
+
+- Redaction rules (URLs, window titles, filenames)  
+
+- “Share modes”:
+    1. **Private journal** (full fidelity, local)
+    2. **Manager summary** (aggregated, redacted)
+    3. **Evidence pack** (includes links/artifacts user-approved)
 
 ---
 
@@ -390,42 +375,36 @@ So implement privacy as a **policy engine** inside Jerry Ingestion:
 
 ### **Phase 0 — Minimal Jerry (1–2 weeks)**
 
-* Ingestion service pulls:  
-    
-  * TimeHarbor sessions \+ notes  
-  * ActivityWatch focus blocks \+ AFK (no fine-grained titles)
+- Ingestion service pulls:
+    - TimeHarbor sessions \+ notes
+    - ActivityWatch focus blocks \+ AFK (no fine-grained titles)
 
-
-* Jerry outputs daily narrative \+ bullets \+ 3 metrics:  
-    
-  * deep work time  
-  * collaboration time  
-  * context switches/hour
+- Jerry outputs daily narrative \+ bullets \+ 3 metrics:
+    - deep work time
+    - collaboration time
+    - context switches/hour
 
 ### **Phase 1 — “Defensible” Jerry (next)**
 
-* Evidence appendix: each narrative claim references:  
-    
-  * TimeHarbor session id(s)  
-  * aggregated ActivityWatch block id(s)
+- Evidence appendix: each narrative claim references:
+    - TimeHarbor session id(s)
+    - aggregated ActivityWatch block id(s)
 
-
-* Add “obstacle detection” heuristics:  
-    
-  * Repeated re-entry into the same block  
-  * unusually high switching  
-  * long blocks with no artifact
+- Add “obstacle detection” heuristics:
+    - Repeated re-entry into the same block
+    - unusually high switching
+    - long blocks with no artifact
 
 ### **Phase 2 — Pulse-powered “proof of work”**
 
-* Allow linking a Pulse clip to a TimeHarbor session  
-* If PulseVault is used, store clips with secure access patterns (it already describes secure uploads \+ serving architecture). ([GitHub](https://github.com/mieweb/PulseVault))  
-* Jerry includes “watch this 45s recap” links in the appendix for stakeholders
+- Allow linking a Pulse clip to a TimeHarbor session
+- If PulseVault is used, store clips with secure access patterns (it already describes secure uploads \+ serving architecture). ([GitHub](https://github.com/mieweb/PulseVault))
+- Jerry includes “watch this 45s recap” links in the appendix for stakeholders
 
 ### **Phase 3 — Org integrations (optional)**
 
-* GitHub/Jira/Linear/Docs ingestion to auto-link artifacts  
-* OKR alignment (tag themes to goals)
+- GitHub/Jira/Linear/Docs ingestion to auto-link artifacts
+- OKR alignment (tag themes to goals)
 
 ---
 
@@ -434,60 +413,56 @@ So implement privacy as a **policy engine** inside Jerry Ingestion:
 ### **Services**
 
 1. **Jerry Ingestion API (Node/Fastify)**  
-     
-* Endpoints:  
-    
-  * `POST /jerry/daily/build` (build context doc for date range)  
-  * `POST /jerry/daily/render` (calls Ozwell and streams output)
 
 
-* Connectors:  
-    
-  * ActivityWatch REST: buckets/events ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))  
-  * TimeHarbor DB/API (Meteor/Mongo-based per repo description) ([GitHub](https://github.com/mieweb/timeharbor))  
-  * PulseVault API (later; start by storing links)  
-2. **Jerry UI (could be inside TimeHarbor)**  
-* “Generate today’s narrative.”  
-* Toggle: private /manager/evidencee  
-* Editable output (user can correct before sharing)
+- Endpoints:
+    - `POST /jerry/daily/build` (build context doc for date range)
+    - `POST /jerry/daily/render` (calls Ozwell and streams output)
+
+- Connectors:
+    - ActivityWatch REST: buckets/events ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))
+    - TimeHarbor DB/API (Meteor/Mongo-based per repo description) ([GitHub](https://github.com/mieweb/timeharbor))
+    - PulseVault API (later; start by storing links)
+
+2. **Jerry UI (could be inside TimeHarbor)**
+
+- “Generate today’s narrative.”
+- Toggle: private /manager/evidencee
+- Editable output (user can correct before sharing)
 
 ### **Core libraries**
 
-* `activitywatch-client` usage or direct REST calls ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))  
-* A shared `jerry-schema` package (Zod) to validate context docs (fits Ozwell’s Zod-first spec culture) ([GitHub](https://github.com/mieweb/ozwellai-api))
+- `activitywatch-client` usage or direct REST calls ([ActivityWatch Documentation](https://docs.activitywatch.net/en/latest/api/rest.html?utm_source=chatgpt.com))
+- A shared `jerry-schema` package (Zod) to validate context docs (fits Ozwell’s Zod-first spec culture) ([GitHub](https://github.com/mieweb/ozwellai-api))
 
 ---
 
 ## **10\) How you’ll know it works (acceptance tests)**
 
-* Given a day with:  
-    
-  * 2 TimeHarbor sessions, 1 reflection each  
-  * ActivityWatch shows 3 major focus blocks \+ 1 meeting block.
+- Given a day with:
+    - 2 TimeHarbor sessions, 1 reflection each
+    - ActivityWatch shows 3 major focus blocks \+ 1 meeting block.
 
-
-* Jerry must output:  
-    
-  * a narrative that mentions both projects,  
-  * at least one obstacle,  
-  * at least one “why it mattered” statement tied to an org outcome,  
-  * an appendix that maps claims → session/block ids,  
-  * with redactions applied by default.
+- Jerry must output:
+    - a narrative that mentions both projects,
+    - at least one obstacle,
+    - at least one “why it mattered” statement tied to an org outcome,
+    - an appendix that maps claims → session/block ids,
+    - with redactions applied by default.
 
 ---
 
 # Appendix
 
-* [TimeHarbor](https://github.com/Dharp02/TimeharborApp)  
-  * TimeHarbor Navya \- [https://github.com/mieweb/timeharbor](https://github.com/mieweb/timeharbor) (Production)  
-  * Doug: [https://github.com/mieweb/timeharbor-app](https://github.com/mieweb/timeharbor-app) \- [https://www.youtube.com/shorts/Hg5W6LPyLWg](https://www.youtube.com/shorts/Hg5W6LPyLWg)  
-  * Poonam [https://github.com/Dharp02/TimeharborApp](https://github.com/Dharp02/TimeharborApp)   
-* Pulse  
-  * [https://github.com/mieweb/pulse](https://github.com/mieweb/pulse)  [https://apps.apple.com/us/app/pulse-cam/id6748621024](https://apps.apple.com/us/app/pulse-cam/id6748621024)   [https://play.google.com/store/apps/details?id=com.mieweb.pulse](https://play.google.com/store/apps/details?id=com.mieweb.pulse)  
-  * [https://github.com/mieweb/PulseVault](https://github.com/mieweb/PulseVault)   [https://pulse-vault.opensource.mieweb.org/](https://pulse-vault.opensource.mieweb.org/)   
-  * [https://github.com/mieweb/pulseclip](https://github.com/mieweb/pulseclip)   [https://pulseclip.os.mieweb.org](https://pulseclip.os.mieweb.org)   
-* Check out:  
-  * [https://activitywatch.net/](https://activitywatch.net/)  
-  * [https://mieweb.github.io/ozwellai-api/](https://mieweb.github.io/ozwellai-api/)   
-  * [https://github.com/mieweb/ychart](https://github.com/mieweb/ychart) 
-
+- [TimeHarbor](https://github.com/Dharp02/TimeharborApp)
+    - TimeHarbor Navya \- [https://github.com/mieweb/timeharbor](https://github.com/mieweb/timeharbor) (Production)
+    - Doug: [https://github.com/mieweb/timeharbor-app](https://github.com/mieweb/timeharbor-app) \- [https://www.youtube.com/shorts/Hg5W6LPyLWg](https://www.youtube.com/shorts/Hg5W6LPyLWg)
+    - Poonam [https://github.com/Dharp02/TimeharborApp](https://github.com/Dharp02/TimeharborApp)
+- Pulse
+    - [https://github.com/mieweb/pulse](https://github.com/mieweb/pulse) [https://apps.apple.com/us/app/pulse-cam/id6748621024](https://apps.apple.com/us/app/pulse-cam/id6748621024) [https://play.google.com/store/apps/details?id=com.mieweb.pulse](https://play.google.com/store/apps/details?id=com.mieweb.pulse)
+    - [https://github.com/mieweb/PulseVault](https://github.com/mieweb/PulseVault) [https://pulse-vault.opensource.mieweb.org/](https://pulse-vault.opensource.mieweb.org/)
+    - [https://github.com/mieweb/pulseclip](https://github.com/mieweb/pulseclip) [https://pulseclip.os.mieweb.org](https://pulseclip.os.mieweb.org)
+- Check out:
+    - [https://activitywatch.net/](https://activitywatch.net/)
+    - [https://mieweb.github.io/ozwellai-api/](https://mieweb.github.io/ozwellai-api/)
+    - [https://github.com/mieweb/ychart](https://github.com/mieweb/ychart)
