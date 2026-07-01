@@ -82,7 +82,7 @@ Platform dependencies live in `vendor/` as git submodules for co-evolution (see 
 
 | Path | Upstream | Key packages |
 |------|----------|--------------|
-| `vendor/cloud` | [mieweb/cloud](https://github.com/mieweb/cloud) | `@mieweb/cloud`, `@mieweb/cli`, cloud-local/os/types/workers |
+| `vendor/cloud` | [mieweb/cloud](https://github.com/mieweb/cloud) | `@mieweb/cloud`, `@mieweb/cloud-agent`, `@mieweb/cloud-agent-cli`, `@mieweb/cli`, cloud-local/os/types/workers |
 | `vendor/footnote` | [mieweb/melvil-artipod-footnote](https://github.com/mieweb/melvil-artipod-footnote) | `@mieweb/footnote` |
 | `vendor/ozwellai-api` | [mieweb/ozwellai-api](https://github.com/mieweb/ozwellai-api) | `ozwellai`, `@mieweb/ozwellai-spec` |
 
@@ -100,6 +100,8 @@ git checkout -b feature/my-change
 # make changes, commit, push to upstream
 # then in jerry root, commit the new submodule SHA
 ```
+
+**Active upstream PR:** [`@mieweb/cloud-agent`](https://github.com/mieweb/cloud/pull/1) — Jerry develops on `vendor/cloud` branch `feature/cloud-agent` (pinned `ecb8aa7`) until merged to `mieweb/cloud` `main`. Track progress in [docs/plans/phase-1.md](docs/plans/phase-1.md).
 
 ### Local development
 

@@ -19,7 +19,7 @@ Create `@mieweb/cloud-agent` in `vendor/cloud` (branch → upstream PR).
 - [x] Conversation mapping — host-owned on `local`/`byo-cloud` (ozwell stub for Phase 2)
 - [x] Unit + integration tests via `@mieweb/cloud-local` harness
 
-**Status:** Implemented on `feature/cloud-agent` branch
+**Status:** Implemented on `feature/cloud-agent` branch; [upstream PR #1](https://github.com/mieweb/cloud/pull/1) open (pin `ecb8aa7`)
 
 ### cloud-agent-cli
 
@@ -31,7 +31,7 @@ Generic message-first CLI dispatcher in `vendor/cloud/packages/cloud-agent-cli`.
 - [x] `--help`, `--version`, `--debug`, `--report`, `--config`
 - [x] Agent name from `basename(argv[0])` (multicall pattern)
 
-**Status:** Implemented on `feature/cloud-agent` branch
+**Status:** Implemented on `feature/cloud-agent` branch; consumed via [upstream PR #1](https://github.com/mieweb/cloud/pull/1)
 
 ### jerry-bindings
 
@@ -122,7 +122,7 @@ Cross-target verification (plan.md §12, §14).
 | `packages/tools` | AW pure functions only — no `tool()` wrappers or I/O |
 | `packages/jerry-app/worker/index.mjs` | `fetch` only (`/`, `/health`, `/hits`) — no DO/queue |
 | `wrangler.jsonc` / `mieweb.jsonc` | D1 + KV only |
-| `vendor/cloud` | Full L4 substrate; **no** `@mieweb/cloud-agent` |
+| `vendor/cloud` | L4 substrate + `@mieweb/cloud-agent` on `feature/cloud-agent` ([PR #1](https://github.com/mieweb/cloud/pull/1), pin `ecb8aa7`) |
 | `packages/cli`, `packages/collector` | Placeholder exports |
 
 Reference worker: `vendor/cloud/packages/test-app/worker/index.mjs` — `fetch`/`queue`/`scheduled` + DO class pattern Jerry should mirror.
@@ -207,6 +207,8 @@ flowchart LR
 **Location:** new package `vendor/cloud/packages/cloud-agent` (+ companion `cloud-agent-cli`).
 
 **Branch workflow:** create `feature/cloud-agent` in `vendor/cloud` submodule; pin Jerry to that commit; open upstream PR to `mieweb/cloud` per [plan.md §9](../../plan.md).
+
+**Upstream PR:** [mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1) — `feature/cloud-agent` → `main` (`ecb8aa7`, 2 commits, +2,137 lines). Jerry pin: `vendor/cloud` @ `ecb8aa7` on `development`.
 
 ### Core API
 
@@ -357,7 +359,7 @@ packages/cli/
 
 ## Done when
 
-- `hostAgent` lands in `vendor/cloud` (branch pinned; upstream PR open)
+- [x] `hostAgent` lands in `vendor/cloud` (branch pinned; [upstream PR #1](https://github.com/mieweb/cloud/pull/1) open)
 - `jerry summarize my last 2 hours` (mock model on `local`) completes end-to-end
 - Agent question parks at `waiting_for_user`; later reply resumes same session
 - Collector push → footnote index → `jerry find …` cites document

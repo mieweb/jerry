@@ -94,7 +94,19 @@ The adapter drivers themselves (`libsql`, `valkey`, `s3`, `valkey-queue`, `libsq
 
 ---
 
-**Bottom line:** The only delta vs `mieweb/cloud` `main` is the unreleased **`feature/cloud-agent` branch** with two new packages and the second commit’s sync-turn + `createTools` changes. It hasn’t been pushed or merged upstream yet; Jerry is pinned to it locally so Phase 1 can build on top.
+**Bottom line:** The only delta vs `mieweb/cloud` `main` is the **`feature/cloud-agent` branch** with two new packages and the second commit’s sync-turn + `createTools` changes. Jerry is pinned to it locally so Phase 1 can build on top.
 
-If you meant a different “on mieweb” (e.g. a deployed os.mieweb.org instance or an open PR), say which and we can compare that specifically.
+---
+
+## Update (2026-06-30)
+
+Upstream PR opened: **[mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1)** (`feature/cloud-agent` → `main`).
+
+| | Detail |
+|---|---|
+| **PR** | https://github.com/mieweb/cloud/pull/1 |
+| **Branch** | `feature/cloud-agent` (pushed to `origin`) |
+| **Commits** | `c154c39` (packages), `ecb8aa7` (sync `--call` + `createTools`) |
+| **Jerry pin** | `vendor/cloud` @ `ecb8aa7` on `development` |
+| **Tracking** | [docs/plans/phase-1.md](../plans/phase-1.md) Item 1 |
 
