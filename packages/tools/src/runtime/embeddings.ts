@@ -1,64 +1,97 @@
 /**
  * Embedding utilities — shared between search_memory and index_document.
  *
- * Uses Ollama's /api/embeddings endpoint with nomic-embed-text model (768 dimensions).
+ * Uses footnote's embedder infrastructure which provides:
+ * - Ollama embeddings with nomic-embed-text (768 dimensions)
+ * - Automatic truncation and retry on context length errors
+ * - Model-specific context limits
+ * - Better error handling
  */
 
-export interface EmbeddingConfig {
-  ollamaUrl?: string;
-  model?: string;
-}
+// Import from footnote (workspace package with dist built)
+import {
+  createEmbedder,
+  type Embedder,
+  type EmbedderConfig,
+} from "@mieweb/footnote";
 
-const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
-const DEFAULT_MODEL = "nomic-embed-text";
+export type { EmbedderConfig };
+
+const DEFAULT_MODEL = "ollama:nomic-embed-text";
+const DEFAULT_DIMENSION = 768;
+
+let cachedEmbedder: Embedder | null = null;
 
 /**
- * Generate an embedding for a text string using Ollama.
+ * Get or create the shared embedder instance.
+ * Uses footnote's OllamaEmbedder which handles:
+ * - Context length truncation and retries
+ * - Model-specific limits
+ * - Better error messages
+ */
+function getEmbedder(config?: Partial<EmbedderConfig>): Embedder {
+  if (!cachedEmbedder) {
+    cachedEmbedder = createEmbedder({
+      model: config?.model ?? DEFAULT_MODEL,
+      dimension: config?.dimension ?? DEFAULT_DIMENSION,
+      baseUrl: config?.baseUrl,
+    });
+  }
+  return cachedEmbedder;
+}
+
+/**
+ * Reset the cached embedder (useful for tests).
+ */
+export function resetEmbedder(): void {
+  cachedEmbedder = null;
+}
+
+/**
+ * Generate an embedding for a text string using footnote's embedder.
  *
  * @param text - The text to embed
- * @param config - Optional configuration for Ollama URL and model
+ * @param config - Optional configuration for model and base URL
  * @returns The embedding vector (768 dimensions for nomic-embed-text) or null on failure
  */
 export async function getEmbedding(
   text: string,
-  config: EmbeddingConfig = {}
+  config?: Partial<EmbedderConfig>
 ): Promise<number[] | null> {
-  const ollamaUrl = config.ollamaUrl ?? DEFAULT_OLLAMA_URL;
-  const model = config.model ?? DEFAULT_MODEL;
-
   try {
-    const res = await fetch(`${ollamaUrl}/api/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt: text }),
-    });
-
-    if (!res.ok) {
-      console.error(`Ollama embedding request failed: ${res.status} ${res.statusText}`);
-      return null;
-    }
-
-    const data = (await res.json()) as { embedding?: number[] };
-    return data.embedding ?? null;
+    const embedder = getEmbedder(config);
+    const [embedding] = await embedder.embed([text]);
+    return embedding ?? null;
   } catch (err) {
-    console.error(`Ollama embedding error: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `Embedding error: ${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   }
 }
 
 /**
- * Check if Ollama is available and the embedding model is ready.
+ * Check if Ollama is available and ready.
  *
- * @param config - Optional configuration for Ollama URL and model
+ * @param baseUrl - Optional custom Ollama base URL
  * @returns true if Ollama is available, false otherwise
  */
-export async function isOllamaAvailable(config: EmbeddingConfig = {}): Promise<boolean> {
-  const ollamaUrl = config.ollamaUrl ?? DEFAULT_OLLAMA_URL;
-
+export async function isOllamaAvailable(baseUrl?: string): Promise<boolean> {
   try {
-    const res = await fetch(`${ollamaUrl}/api/tags`, { method: "GET" });
-    return res.ok;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+
+    const url = baseUrl ?? "http://localhost:11434";
+    const response = await fetch(`${url}/api/tags`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    return response.ok;
   } catch {
     return false;
   }
 }
+
+// Re-export footnote embedder utilities for direct use if needed
+export { createEmbedder };

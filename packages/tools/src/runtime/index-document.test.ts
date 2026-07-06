@@ -5,6 +5,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createIndexDocumentTool } from "./index-document.ts";
+import { resetEmbedder } from "./embeddings.ts";
 import type { ToolContext } from "./types.ts";
 
 let originalFetch: typeof globalThis.fetch;
@@ -47,10 +48,15 @@ function createMockContext(overrides: Partial<ToolContext> = {}): ToolContext {
 }
 
 function mockFetchForEmbedding(embedding: number[] | null) {
-  originalFetch = globalThis.fetch;
   globalThis.fetch = mock.fn(async () => {
     if (embedding === null) {
-      return { ok: false, status: 500 } as Response;
+      return {
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => ({ error: "Embedding failed" }),
+        text: async () => "Embedding failed",
+      } as Response;
     }
     return {
       ok: true,
@@ -62,10 +68,12 @@ function mockFetchForEmbedding(embedding: number[] | null) {
 describe("index_document tool", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
+    resetEmbedder(); // Reset cached embedder for each test
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    resetEmbedder();
   });
 
   it("returns error when vectors binding is not available", async () => {

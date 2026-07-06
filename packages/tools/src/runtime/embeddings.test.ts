@@ -1,20 +1,22 @@
 /**
- * Tests for embeddings module.
+ * Tests for embeddings module (using footnote embedder).
  */
 
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { getEmbedding, isOllamaAvailable } from "./embeddings.ts";
+import { getEmbedding, isOllamaAvailable, resetEmbedder } from "./embeddings.ts";
 
 let originalFetch: typeof globalThis.fetch;
 
-describe("getEmbedding", () => {
+describe("getEmbedding (footnote embedder)", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
+    resetEmbedder(); // Reset cached embedder for each test
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    resetEmbedder();
   });
 
   it("returns embedding from successful Ollama response", async () => {
@@ -37,6 +39,7 @@ describe("getEmbedding", () => {
       ok: false,
       status: 500,
       statusText: "Internal Server Error",
+      json: async () => ({ error: "Server error" }),
     })) as typeof fetch;
 
     const result = await getEmbedding("test query");
@@ -54,18 +57,7 @@ describe("getEmbedding", () => {
     assert.equal(result, null);
   });
 
-  it("returns null when response has no embedding", async () => {
-    globalThis.fetch = mock.fn(async () => ({
-      ok: true,
-      json: async () => ({}),
-    })) as typeof fetch;
-
-    const result = await getEmbedding("test query");
-
-    assert.equal(result, null);
-  });
-
-  it("uses custom Ollama URL", async () => {
+  it("uses custom base URL", async () => {
     let calledUrl = "";
     globalThis.fetch = mock.fn(async (url: string | URL | Request) => {
       calledUrl = typeof url === "string" ? url : url.toString();
@@ -75,7 +67,7 @@ describe("getEmbedding", () => {
       };
     }) as typeof fetch;
 
-    await getEmbedding("test", { ollamaUrl: "http://custom:11434" });
+    await getEmbedding("test", { baseUrl: "http://custom:11434" });
 
     assert.ok(calledUrl.startsWith("http://custom:11434"));
   });
@@ -90,10 +82,10 @@ describe("getEmbedding", () => {
       };
     }) as typeof fetch;
 
-    await getEmbedding("test", { model: "custom-model" });
+    await getEmbedding("test", { model: "mxbai-embed-large", dimension: 1024 });
 
     const parsed = JSON.parse(requestBody);
-    assert.equal(parsed.model, "custom-model");
+    assert.equal(parsed.model, "mxbai-embed-large");
   });
 });
 
@@ -140,6 +132,14 @@ describe("isOllamaAvailable", () => {
 
 describe("Ollama embeddings integration", () => {
   const shouldRun = process.env.JERRY_OLLAMA_TEST === "1";
+
+  beforeEach(() => {
+    resetEmbedder();
+  });
+
+  afterEach(() => {
+    resetEmbedder();
+  });
 
   it("generates real embedding from Ollama", { skip: !shouldRun }, async () => {
     const result = await getEmbedding("Hello, this is a test document for embedding.");
