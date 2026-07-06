@@ -1,12 +1,14 @@
 /**
  * Folder watcher — watches directories for new files (screenshots, notes).
  *
- * Pushes external events to Jerry when new files are detected.
+ * Pushes external events to Jerry when new files are detected,
+ * and ingests text files into the semantic search index.
  */
 
 import { watch, type FSWatcher } from "chokidar";
 import { readFile, stat } from "fs/promises";
 import { basename, extname } from "path";
+import { ingestFile, shouldIndex } from "./ingest.js";
 
 export interface FolderWatcherConfig {
   /** Jerry API base URL (default: http://127.0.0.1:8787) */
@@ -80,6 +82,17 @@ async function pushFileEvent(
     }
 
     console.log(`Pushed ${eventType} event for: ${name}`);
+
+    // Ingest text files for semantic search indexing
+    if (content && shouldIndex(ext, stats.size)) {
+      const ingestResult = await ingestFile(filePath, content, { jerryUrl });
+      if (ingestResult.success) {
+        console.log(`Indexed for search: ${name}`);
+      } else if (ingestResult.error) {
+        console.warn(`Indexing skipped: ${ingestResult.error}`);
+      }
+    }
+
     return true;
   } catch (err) {
     console.error(`Error pushing file event for ${filePath}: ${err}`);

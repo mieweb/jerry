@@ -2,11 +2,13 @@
  * search_memory tool — semantic search over indexed documents.
  *
  * Uses the CloudVectorIndex binding (footnote) for semantic + literal search.
+ * Embeddings are generated via Ollama's nomic-embed-text model.
  */
 
 import { tool } from "ai";
 import { z } from "zod";
 import type { ToolContext } from "./types.js";
+import { getEmbedding } from "./embeddings.js";
 
 interface VectorMatch {
   id: string;
@@ -50,15 +52,14 @@ export function createSearchMemoryTool(ctx: ToolContext) {
       }
 
       try {
-        // Query the vector index
-        // Note: This assumes the vector index has been populated with embeddings
-        // In a real implementation, we would need to embed the query first
-        const queryVector = await getQueryEmbedding(query);
+        // Generate embedding for the search query using Ollama
+        const queryVector = await getEmbedding(query);
 
         if (!queryVector) {
           return {
             error: true,
-            message: "Could not generate embedding for query.",
+            message:
+              "Could not generate embedding for query. Ollama may not be running or nomic-embed-text model may not be available.",
             results: [],
           };
         }
@@ -103,21 +104,4 @@ export function createSearchMemoryTool(ctx: ToolContext) {
       }
     },
   });
-}
-
-/**
- * Generate an embedding for a query string.
- * This is a placeholder — in production this would call an embedding model.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function getQueryEmbedding(_query: string): Promise<number[] | null> {
-  // Placeholder: return a random vector for now
-  // In production, this would call Ollama, OpenAI, or Workers AI for embeddings
-  // The dimension should match the index configuration (768 for many models)
-  const dim = 768;
-  const vector = new Array(dim).fill(0).map(() => Math.random() * 2 - 1);
-
-  // Normalize the vector
-  const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
-  return vector.map((v) => v / magnitude);
 }
