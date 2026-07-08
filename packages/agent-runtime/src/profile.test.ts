@@ -24,6 +24,9 @@ describe("DEFAULT_PRIVACY_PROFILE", () => {
       summarize_activity: "local",
       search_memory: "local",
       schedule_followup: "local",
+      read_file: "local",
+      list_watched: "local",
+      index_document: "local",
       drive: "ask",
       youtube: "ask",
     });
