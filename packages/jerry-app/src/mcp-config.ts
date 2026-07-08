@@ -1,0 +1,84 @@
+/**
+ * MCP configuration resolver.
+ *
+ * Resolves MCP server configs from privacy profiles and environment overrides.
+ * Provides default footnote configuration when available.
+ */
+
+import type { McpServerConfig, PrivacyProfile } from "@mieweb/jerry-agent-runtime";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Default footnote MCP server configuration.
+ * Points to the vendor/footnote submodule's docidx CLI.
+ */
+export function getDefaultFootnoteConfig(): McpServerConfig {
+  const footnoteRoot = resolve(__dirname, "../../../vendor/footnote");
+  return {
+    name: "footnote",
+    command: "node",
+    args: [resolve(footnoteRoot, "bin/docidx.js"), "mcp"],
+    env: {
+      FOOTNOTE_DB: process.env.FOOTNOTE_DB || "./.footnote",
+    },
+  };
+}
+
+/**
+ * Resolve MCP server configurations from profile and environment.
+ *
+ * Priority:
+ * 1. Profile mcp.servers[] if provided
+ * 2. JERRY_MCP_SERVERS env var (JSON array)
+ * 3. Default footnote if JERRY_FOOTNOTE_ENABLED=true or not explicitly disabled
+ *
+ * @param profile - Privacy profile (may contain mcp.servers)
+ * @returns Array of MCP server configs to connect
+ */
+export function resolveMcpServers(
+  profile?: PrivacyProfile
+): McpServerConfig[] {
+  // Check for explicit profile config
+  if (profile?.mcp?.servers && profile.mcp.servers.length > 0) {
+    return profile.mcp.servers;
+  }
+
+  // Check for environment override
+  const envServers = process.env.JERRY_MCP_SERVERS;
+  if (envServers) {
+    try {
+      const parsed = JSON.parse(envServers);
+      if (Array.isArray(parsed)) {
+        return parsed as McpServerConfig[];
+      }
+    } catch {
+      console.warn("Invalid JERRY_MCP_SERVERS JSON, ignoring");
+    }
+  }
+
+  // Default: include footnote unless explicitly disabled
+  const footnoteDisabled =
+    process.env.JERRY_FOOTNOTE_ENABLED === "false" ||
+    process.env.JERRY_MCP_DISABLED === "true";
+
+  if (!footnoteDisabled) {
+    return [getDefaultFootnoteConfig()];
+  }
+
+  return [];
+}
+
+/**
+ * Check if MCP is available for the current environment.
+ * MCP requires stdio transport which needs process spawning capability.
+ */
+export function isMcpAvailable(): boolean {
+  // Cloudflare Workers can't spawn child processes
+  if (typeof globalThis.caches !== "undefined" && !globalThis.process) {
+    return false;
+  }
+  return true;
+}

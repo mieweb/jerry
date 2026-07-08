@@ -154,4 +154,21 @@ describe("mergeProfile", () => {
     mergeProfile({ runtime: "byo-cloud" });
     assert.deepEqual(DEFAULT_PRIVACY_PROFILE, original);
   });
+
+  it("accepts MCP server configuration", () => {
+    const result = mergeProfile({
+      mcp: {
+        servers: [
+          {
+            name: "footnote",
+            command: "node",
+            args: ["bin/docidx.js", "mcp"],
+          },
+        ],
+      },
+    });
+    assert.ok(result.mcp);
+    assert.equal(result.mcp.servers?.length, 1);
+    assert.equal(result.mcp.servers?.[0].name, "footnote");
+  });
 });

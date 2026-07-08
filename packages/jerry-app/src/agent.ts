@@ -39,12 +39,19 @@ export const JERRY_INSTRUCTIONS = `You are Jerry, a value advocate agent. Your r
 
 ## Available Tools
 
+### Core Tools
 - summarize_activity: Get activity summary for a time range
-- search_memory: Search indexed documents and notes semantically
+- search_memory: Search indexed documents and notes semantically (basic vector search)
 - schedule_followup: Schedule a reminder for future follow-up
 - read_file: Read contents of a file from storage
 - list_watched: List files captured by the folder watcher (screenshots, notes)
 - index_document: Index a document into the semantic search system
+
+### Advanced Search (via footnote MCP, when available)
+- search_hybrid: Combined vector + full-text search for richer results — prefer this over search_memory when available
+- search_fts: Full-text keyword search with BM25 ranking
+- search_literal: Exact string grep for finding specific phrases
+- read_document: Fetch complete document content by path
 
 When you don't have enough information or need user input, suspend and ask. The user can resume the conversation later.`;
 

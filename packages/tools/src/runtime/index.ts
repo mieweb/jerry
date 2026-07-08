@@ -21,14 +21,23 @@ export { createReadFileTool, createListWatchedTool } from "./file-tools.js";
 export { createIndexDocumentTool } from "./index-document.js";
 export { getEmbedding, isOllamaAvailable } from "./embeddings.js";
 
+export interface CreateJerryToolsOptions {
+  /** Optional MCP tools to merge (e.g. from footnote adapter) */
+  mcpTools?: ToolSet;
+}
+
 /**
  * Create all Jerry tools bound to a tool context.
  *
  * @param ctx - Tool context with bindings and control functions
+ * @param options - Optional configuration including MCP tools
  * @returns A ToolSet ready to pass to the runtime
  */
-export function createJerryTools(ctx: ToolContext): ToolSet {
-  return {
+export function createJerryTools(
+  ctx: ToolContext,
+  options?: CreateJerryToolsOptions
+): ToolSet {
+  const coreTools: ToolSet = {
     summarize_activity: createSummarizeActivityTool(ctx),
     search_memory: createSearchMemoryTool(ctx),
     schedule_followup: createScheduleFollowupTool(ctx),
@@ -36,4 +45,11 @@ export function createJerryTools(ctx: ToolContext): ToolSet {
     list_watched: createListWatchedTool(ctx),
     index_document: createIndexDocumentTool(ctx),
   };
+
+  // Merge MCP tools if provided (they take precedence for overlapping names)
+  if (options?.mcpTools) {
+    return { ...coreTools, ...options.mcpTools };
+  }
+
+  return coreTools;
 }
