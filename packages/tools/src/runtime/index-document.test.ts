@@ -82,7 +82,7 @@ describe("index_document tool", () => {
 
     const result = await tool.execute(
       { path: "/test.txt", content: "Hello world" },
-      { toolCallId: "1" }
+      { toolCallId: "1", messages: [] }
     );
 
     assert.equal(result.error, true);
@@ -99,7 +99,7 @@ describe("index_document tool", () => {
 
     const result = await tool.execute(
       { path: "/test.txt", content: "Hello world" },
-      { toolCallId: "1" }
+      { toolCallId: "1", messages: [] }
     );
 
     assert.equal(result.error, true);
@@ -118,7 +118,7 @@ describe("index_document tool", () => {
 
     const result = await tool.execute(
       { path: "/test.txt", content: "Hello world", metadata: { title: "Test Doc" } },
-      { toolCallId: "1" }
+      { toolCallId: "1", messages: [] }
     );
 
     assert.equal(result.error, false);
@@ -127,7 +127,7 @@ describe("index_document tool", () => {
     assert.equal(result.embeddingDimensions, 768);
 
     // Check that vectors.upsert was called
-    const indexed = (vectors as unknown as { _indexed: unknown[] })._indexed;
+    const indexed = (vectors as unknown as { _indexed: Array<{ values: number[]; metadata: Record<string, string> }> })._indexed;
     assert.equal(indexed.length, 1);
     assert.equal(indexed[0].values.length, 768);
     assert.equal(indexed[0].metadata.title, "Test Doc");
@@ -147,12 +147,12 @@ describe("index_document tool", () => {
 
     const result1 = await tool.execute(
       { path: "/test.txt", content: "Content 1" },
-      { toolCallId: "1" }
+      { toolCallId: "1", messages: [] }
     );
 
     const result2 = await tool.execute(
       { path: "/test.txt", content: "Content 2" },
-      { toolCallId: "2" }
+      { toolCallId: "2", messages: [] }
     );
 
     assert.equal(result1.id, result2.id);
@@ -168,7 +168,7 @@ describe("index_document tool", () => {
 
     const result = await tool.execute(
       { path: "/test.txt", content: "Hello world" },
-      { toolCallId: "1" }
+      { toolCallId: "1", messages: [] }
     );
 
     assert.equal(result.error, false);

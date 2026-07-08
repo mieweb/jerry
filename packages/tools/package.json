@@ -21,7 +21,6 @@
   "dependencies": {
     "ai": "^4.0.0",
     "zod": "^3.23.0",
-    "@mieweb/cloud-types": "workspace:*",
-    "@mieweb/footnote": "workspace:*"
+    "@mieweb/cloud-types": "workspace:*"
   }
 }

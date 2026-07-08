@@ -55,7 +55,7 @@ describe("read_file tool", () => {
     const ctx = createMockContext({ bucket: undefined });
     const tool = createReadFileTool(ctx);
 
-    const result = await tool.execute({ path: "/test.txt" }, { toolCallId: "1" });
+    const result = await tool.execute({ path: "/test.txt" }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, true);
     assert.ok(result.message?.includes("not available"));
@@ -66,7 +66,7 @@ describe("read_file tool", () => {
     const ctx = createMockContext({ bucket });
     const tool = createReadFileTool(ctx);
 
-    const result = await tool.execute({ path: "/nonexistent.txt" }, { toolCallId: "1" });
+    const result = await tool.execute({ path: "/nonexistent.txt" }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, true);
     assert.ok(result.message?.includes("not found"));
@@ -83,7 +83,7 @@ describe("read_file tool", () => {
     const ctx = createMockContext({ bucket });
     const tool = createReadFileTool(ctx);
 
-    const result = await tool.execute({ path: "/test.txt" }, { toolCallId: "1" });
+    const result = await tool.execute({ path: "/test.txt" }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, false);
     assert.equal(result.content, "Hello, World!");
@@ -97,7 +97,7 @@ describe("list_watched tool", () => {
     const ctx = createMockContext();
     const tool = createListWatchedTool(ctx);
 
-    const result = await tool.execute({ limit: 20 }, { toolCallId: "1" });
+    const result = await tool.execute({ limit: 20 }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, false);
     assert.deepEqual(result.files, []);
@@ -129,7 +129,7 @@ describe("list_watched tool", () => {
     const ctx = createMockContext({ db });
     const tool = createListWatchedTool(ctx);
 
-    const result = await tool.execute({ limit: 10 }, { toolCallId: "1" });
+    const result = await tool.execute({ limit: 10 }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, false);
     assert.equal(result.count, 2);
@@ -154,7 +154,7 @@ describe("list_watched tool", () => {
     const ctx = createMockContext({ db });
     const tool = createListWatchedTool(ctx);
 
-    const result = await tool.execute({ limit: 10 }, { toolCallId: "1" });
+    const result = await tool.execute({ limit: 10 }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.error, false);
     assert.equal(result.count, 1);
@@ -171,7 +171,7 @@ describe("list_watched tool", () => {
     const ctx = createMockContext({ db });
     const tool = createListWatchedTool(ctx);
 
-    const result = await tool.execute({ limit: 2 }, { toolCallId: "1" });
+    const result = await tool.execute({ limit: 2 }, { toolCallId: "1", messages: [] });
 
     assert.equal(result.count, 2);
   });

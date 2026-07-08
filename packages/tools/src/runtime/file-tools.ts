@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { ToolContext, StoredActivityEvent } from "./types.js";
+import type { ToolContext } from "./types.js";
 
 /**
  * Create the read_file tool.
@@ -84,7 +84,10 @@ export function createListWatchedTool(ctx: ToolContext) {
         .int()
         .min(1)
         .max(100)
+        .nullable()
+        .optional()
         .default(20)
+        .transform((v) => v ?? 20)
         .describe("Maximum number of files to return"),
     }),
     execute: async ({ prefix, limit = 20 }) => {

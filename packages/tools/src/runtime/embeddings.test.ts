@@ -25,7 +25,7 @@ describe("getEmbedding (footnote embedder)", () => {
     globalThis.fetch = mock.fn(async () => ({
       ok: true,
       json: async () => ({ embedding: expectedEmbedding }),
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
 
     const result = await getEmbedding("test query");
 
@@ -40,7 +40,7 @@ describe("getEmbedding (footnote embedder)", () => {
       status: 500,
       statusText: "Internal Server Error",
       json: async () => ({ error: "Server error" }),
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
 
     const result = await getEmbedding("test query");
 
@@ -65,7 +65,7 @@ describe("getEmbedding (footnote embedder)", () => {
         ok: true,
         json: async () => ({ embedding: [1, 2, 3] }),
       };
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     await getEmbedding("test", { baseUrl: "http://custom:11434" });
 
@@ -80,7 +80,7 @@ describe("getEmbedding (footnote embedder)", () => {
         ok: true,
         json: async () => ({ embedding: [1, 2, 3] }),
       };
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     await getEmbedding("test", { model: "mxbai-embed-large", dimension: 1024 });
 
@@ -101,7 +101,7 @@ describe("isOllamaAvailable", () => {
   it("returns true when Ollama is reachable", async () => {
     globalThis.fetch = mock.fn(async () => ({
       ok: true,
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
 
     const result = await isOllamaAvailable();
 
@@ -122,7 +122,7 @@ describe("isOllamaAvailable", () => {
     globalThis.fetch = mock.fn(async () => ({
       ok: false,
       status: 503,
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
 
     const result = await isOllamaAvailable();
 
@@ -161,11 +161,16 @@ describe("Ollama embeddings integration", () => {
 
     // Calculate cosine similarity - different texts should have different embeddings
     let dotProduct = 0;
+    let mag1 = 0;
+    let mag2 = 0;
     for (let i = 0; i < result1.length; i++) {
       dotProduct += result1[i] * result2[i];
+      mag1 += result1[i] * result1[i];
+      mag2 += result2[i] * result2[i];
     }
+    const cosineSimilarity = dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2));
 
-    // Similarity should be less than 1 (not identical)
-    assert.ok(dotProduct < 0.99, "Different texts should have different embeddings");
+    // Cosine similarity should be less than 0.99 (vectors are not identical)
+    assert.ok(cosineSimilarity < 0.99, "Different texts should have different embeddings");
   });
 });

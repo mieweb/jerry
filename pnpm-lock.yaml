@@ -85,9 +85,6 @@ importers:
       '@mieweb/cloud-types':
         specifier: workspace:*
         version: link:../../vendor/cloud/packages/cloud-types
-      '@mieweb/footnote':
-        specifier: workspace:*
-        version: link:../../vendor/footnote
       ai:
         specifier: ^4.0.0
         version: 4.3.19(react@19.2.7)(zod@3.25.76)
