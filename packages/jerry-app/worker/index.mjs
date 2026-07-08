@@ -11,7 +11,7 @@
 
 import { hostAgent } from "@mieweb/cloud-agent";
 import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
-import { createJerryTools } from "@mieweb/jerry-tools/runtime";
+import { createJerryTools, getEmbedding } from "@mieweb/jerry-tools/runtime";
 import { jerry } from "../src/agent.ts";
 
 /**
@@ -77,6 +77,77 @@ export default {
       const n = results?.[0]?.n ?? 0;
       await env.CACHE.put("last-count", String(n));
       return json({ hits: n });
+    }
+
+    // PUT /v1/files/:path — store file content in bucket (collector ingest pipeline)
+    const fileMatch = url.pathname.match(/^\/v1\/files\/(.+)$/);
+    if (fileMatch && request.method === "PUT") {
+      if (!env.BUCKET) {
+        return json({ error: "Bucket binding not available" }, 503);
+      }
+      const filePath = decodeURIComponent(fileMatch[1]);
+      const content = await request.text();
+      await env.BUCKET.put(filePath, content, {
+        httpMetadata: {
+          contentType: request.headers.get("Content-Type") ?? "text/plain",
+        },
+      });
+      return json({ ok: true, path: filePath, size: content.length });
+    }
+
+    // POST /v1/index — embed and upsert a document (collector ingest pipeline)
+    if (url.pathname === "/v1/index" && request.method === "POST") {
+      if (!env.VECTORS) {
+        return json({ error: "Vector index binding not available" }, 503);
+      }
+      const body = await request.json();
+      const { path, content, metadata = {} } = body;
+
+      if (!path || !content) {
+        return json({ error: "path and content are required" }, 400);
+      }
+
+      const embedding = await getEmbedding(content);
+      if (!embedding) {
+        return json(
+          {
+            error:
+              "Failed to generate embedding. Is Ollama running with nomic-embed-text?",
+          },
+          503
+        );
+      }
+
+      // Derive a stable ID from the path (mirrors index-document.ts logic)
+      let hash = 0;
+      for (let i = 0; i < path.length; i++) {
+        const char = path.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash;
+      }
+      const docId = `doc_${Math.abs(hash).toString(36)}`;
+
+      const vectorMetadata = {
+        ...metadata,
+        path,
+        title: metadata.title ?? path.split("/").pop() ?? "Untitled",
+        snippet: content.slice(0, 500),
+        source: metadata.source ?? "indexed",
+        indexedAt: new Date().toISOString(),
+      };
+
+      await env.VECTORS.upsert([
+        { id: docId, values: embedding, metadata: vectorMetadata },
+      ]);
+
+      if (env.BUCKET) {
+        await env.BUCKET.put(path, content, {
+          httpMetadata: { contentType: "text/plain" },
+          customMetadata: vectorMetadata,
+        });
+      }
+
+      return json({ ok: true, id: docId, path, embeddingDimensions: embedding.length });
     }
 
     // Delegate to hostAgent for all agent routes

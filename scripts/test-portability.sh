@@ -70,7 +70,7 @@ run_tests() {
   
   # Test 1: Health check
   log_info "Test 1: Health check"
-  if curl -s "http://127.0.0.1:$port/health" | grep -q '"ok":true'; then
+  if curl -s "http://127.0.0.1:$port/health" | grep -q '"ok":\s*true'; then
     log_info "✓ Health check passed"
   else
     log_error "✗ Health check failed"

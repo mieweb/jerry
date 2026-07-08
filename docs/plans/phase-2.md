@@ -86,6 +86,8 @@ flowchart TD
 
 ## Slice 1: File Tools and Real Embeddings
 
+**Status:** Merged — [PR #4](https://github.com/mieweb/jerry/pull/4) (2026-07-08). Hotfix PR for worker ingest routes: [PR #5](https://github.com/mieweb/jerry/pull/5).
+
 **Branch:** `phase2/file-tools-embeddings`
 
 **PR target:** `development`
@@ -115,12 +117,17 @@ flowchart TD
 - Drop screenshot in watched folder → collector pushes → `index_document` indexes → `jerry find that diagram` returns it
 
 **PR checklist:**
-- [ ] `read_file` and `list_watched` tools implemented and tested
-- [ ] `index_document` tool working with real embeddings
-- [ ] `search_memory` uses Ollama embeddings (no random vectors)
-- [ ] Collector → footnote pipeline functional
-- [ ] Unit tests pass; Ollama integration test documented
-- [ ] Acceptance scenario verified manually
+- [x] `read_file` and `list_watched` tools implemented and tested
+- [x] `index_document` tool working with real embeddings
+- [x] `search_memory` uses Ollama embeddings (no random vectors)
+- [x] Collector → footnote pipeline functional (client side; worker routes in hotfix)
+- [x] Unit tests pass; Ollama integration test documented
+- [ ] Acceptance scenario verified manually (after hotfix deploy)
+
+**Notes / deviations:**
+- Final merge uses **direct Ollama API** for embeddings (`nomic-embed-text`), not footnote embedder — reverted for CI hermeticity in `64d1481`
+- Footnote hybrid search deferred to **Slice 2** via MCP consume
+- Worker HTTP routes (`/v1/files`, `/v1/index`) landed in hotfix PR (not in original #4)
 
 ---
 

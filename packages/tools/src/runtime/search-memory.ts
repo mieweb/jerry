@@ -38,7 +38,10 @@ export function createSearchMemoryTool(ctx: ToolContext) {
         .int()
         .min(1)
         .max(20)
+        .nullable()
+        .optional()
         .default(5)
+        .transform((v) => v ?? 5)
         .describe("Maximum number of results to return"),
     }),
     execute: async ({ query, limit = 5 }) => {
