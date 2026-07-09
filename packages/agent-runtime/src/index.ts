@@ -5,6 +5,7 @@ export type {
   RuntimeKind,
   EgressPolicy,
   ToolEgress,
+  McpServerConfig,
   PrivacyProfile,
   TurnInput,
   RuntimeEvent,

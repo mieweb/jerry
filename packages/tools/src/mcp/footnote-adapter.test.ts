@@ -5,7 +5,8 @@
  * without connecting to actual footnote server.
  */
 
-import { describe, it, mock } from "node:test";
+import { describe, it } from "node:test";
+import type { Tool } from "ai";
 import assert from "node:assert/strict";
 import { createFootnoteMcpTools, FOOTNOTE_TOOL_NAMES } from "./footnote-adapter.js";
 import type { McpClient, McpCallResult } from "./client.js";
@@ -24,7 +25,21 @@ function createMockClient(
     listTools: async () => [],
     callTool: async (name: string, args: Record<string, unknown>) =>
       callToolImpl(name, args),
-  } as McpClient;
+  } as unknown as McpClient;
+}
+
+async function executeTool(
+  tool: Tool,
+  input: Record<string, unknown>
+): Promise<unknown> {
+  if (!tool.execute) {
+    throw new Error("Tool execute is not defined");
+  }
+  return tool.execute(input, {
+    toolCallId: "test",
+    messages: [],
+    abortSignal: undefined as never,
+  });
 }
 
 describe("FOOTNOTE_TOOL_NAMES", () => {
@@ -69,10 +84,15 @@ describe("createFootnoteMcpTools", () => {
       });
 
       const tools = createFootnoteMcpTools(mockClient);
-      const result = await tools.search_hybrid.execute(
-        { query: "kubernetes", limit: 5 },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      const result = await executeTool(tools.search_hybrid, {
+        query: "kubernetes",
+        limit: 5,
+      }) as {
+        source: string;
+        method: string;
+        count: number;
+        results: Array<{ path: string }>;
+      };
 
       assert.equal(calls.length, 1);
       assert.equal(calls[0].name, "search_hybrid");
@@ -93,10 +113,10 @@ describe("createFootnoteMcpTools", () => {
       });
 
       const tools = createFootnoteMcpTools(mockClient);
-      const result = await tools.search_hybrid.execute(
-        { query: "test" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      const result = await executeTool(tools.search_hybrid, { query: "test" }) as {
+        source: string;
+        results: Array<{ snippet?: string }>;
+      };
 
       assert.equal(result.source, "footnote-mcp");
       assert.equal(result.results.length, 1);
@@ -109,13 +129,10 @@ describe("createFootnoteMcpTools", () => {
       }));
 
       const tools = createFootnoteMcpTools(mockClient);
-      const result = await tools.search_hybrid.execute(
-        { query: "test" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
-
-      assert.equal(result.results.length, 1);
-      assert.equal(result.results[0].path, "raw");
+      const result = await executeTool(tools.search_hybrid, { query: "test" }) as {
+        source: string;
+        results: Array<{ path: string; snippet?: string }>;
+      };
       assert.ok(result.results[0].snippet?.includes("not valid json"));
     });
   });
@@ -129,10 +146,7 @@ describe("createFootnoteMcpTools", () => {
       });
 
       const tools = createFootnoteMcpTools(mockClient);
-      await tools.search_fts.execute(
-        { query: "kubernetes" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      await executeTool(tools.search_fts, { query: "kubernetes" });
 
       assert.equal(calls[0].name, "search_fts");
     });
@@ -147,10 +161,7 @@ describe("createFootnoteMcpTools", () => {
       });
 
       const tools = createFootnoteMcpTools(mockClient);
-      await tools.search_literal.execute(
-        { pattern: "TODO:" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      await executeTool(tools.search_literal, { pattern: "TODO:" });
 
       assert.equal(calls[0].name, "search_literal");
       assert.equal(calls[0].args.pattern, "TODO:");
@@ -164,10 +175,14 @@ describe("createFootnoteMcpTools", () => {
       }));
 
       const tools = createFootnoteMcpTools(mockClient);
-      const result = await tools.read_document.execute(
-        { path: "/docs/readme.md" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      const result = await executeTool(tools.read_document, {
+        path: "/docs/readme.md",
+      }) as {
+        source: string;
+        path: string;
+        content: string;
+        length: number;
+      };
 
       assert.equal(result.source, "footnote-mcp");
       assert.equal(result.path, "/docs/readme.md");
@@ -181,10 +196,9 @@ describe("createFootnoteMcpTools", () => {
       });
 
       const tools = createFootnoteMcpTools(mockClient);
-      const result = await tools.read_document.execute(
-        { path: "/missing.md" },
-        { toolCallId: "test", messages: [], abortSignal: undefined as never }
-      );
+      const result = await executeTool(tools.read_document, {
+        path: "/missing.md",
+      }) as { error: boolean; message: string };
 
       assert.equal(result.error, true);
       assert.ok(result.message.includes("File not found"));

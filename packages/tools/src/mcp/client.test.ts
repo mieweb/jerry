@@ -5,7 +5,7 @@
  * spawning actual MCP server processes.
  */
 
-import { describe, it, mock } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { McpClient } from "./client.js";
 

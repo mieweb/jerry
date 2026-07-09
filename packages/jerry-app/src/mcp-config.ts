@@ -76,8 +76,10 @@ export function resolveMcpServers(
  * MCP requires stdio transport which needs process spawning capability.
  */
 export function isMcpAvailable(): boolean {
-  // Cloudflare Workers can't spawn child processes
-  if (typeof globalThis.caches !== "undefined" && !globalThis.process) {
+  // Cloudflare Workers expose caches but cannot spawn child processes
+  const hasCaches = "caches" in globalThis;
+  const hasProcess = typeof process !== "undefined";
+  if (hasCaches && !hasProcess) {
     return false;
   }
   return true;

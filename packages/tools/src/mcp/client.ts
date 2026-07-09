@@ -119,7 +119,7 @@ export class McpClient {
     const result = await this.client.callTool({ name: toolName, arguments: args });
     return {
       content: result.content as McpCallResult["content"],
-      isError: result.isError,
+      isError: result.isError === true,
     };
   }
 
@@ -148,6 +148,12 @@ export async function createMcpClient(
   const client = new McpClient(config);
   try {
     await client.connect();
+    if (
+      process.env.JERRY_VERBOSE === "1" ||
+      process.env.JERRY_VERBOSE === "true"
+    ) {
+      console.error(`[mcp] Connected to "${config.name}"`);
+    }
     return client;
   } catch (error) {
     console.error(
