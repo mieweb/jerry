@@ -15,6 +15,19 @@ import { z } from "zod";
 import type { McpClient, McpCallResult } from "./client.js";
 
 /**
+ * Local models often pass numeric tool args as strings (e.g. limit: "10").
+ * Coerce so Zod validation accepts both forms.
+ */
+const limitParam = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(20)
+  .optional()
+  .default(5)
+  .describe("Maximum number of results to return");
+
+/**
  * Extract text content from MCP call result.
  */
 function extractTextContent(result: McpCallResult): string {
@@ -70,20 +83,13 @@ export function createFootnoteMcpTools(mcpClient: McpClient): ToolSet {
         query: z
           .string()
           .describe("The search query — can be a question or keywords"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .default(5)
-          .describe("Maximum number of results to return"),
+        limit: limitParam,
       }),
       execute: async ({ query, limit = 5 }) => {
         try {
           const result = await mcpClient.callTool("search_hybrid", {
             query,
-            limit,
+            k: limit,
           });
           const text = extractTextContent(result);
           const results = parseSearchResults(text);
@@ -112,20 +118,13 @@ export function createFootnoteMcpTools(mcpClient: McpClient): ToolSet {
         "Full-text search using BM25 ranking. Good for finding documents with specific keywords or phrases.",
       parameters: z.object({
         query: z.string().describe("Keywords or phrase to search for"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .default(5)
-          .describe("Maximum number of results"),
+        limit: limitParam,
       }),
       execute: async ({ query, limit = 5 }) => {
         try {
           const result = await mcpClient.callTool("search_fts", {
             query,
-            limit,
+            k: limit,
           });
           const text = extractTextContent(result);
           const results = parseSearchResults(text);
@@ -154,20 +153,13 @@ export function createFootnoteMcpTools(mcpClient: McpClient): ToolSet {
         "Search for exact string matches (grep-like). Use when you need to find a specific phrase or code snippet.",
       parameters: z.object({
         pattern: z.string().describe("Exact string or pattern to search for"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .default(5)
-          .describe("Maximum number of results"),
+        limit: limitParam,
       }),
       execute: async ({ pattern, limit = 5 }) => {
         try {
           const result = await mcpClient.callTool("search_literal", {
-            pattern,
-            limit,
+            query: pattern,
+            k: limit,
           });
           const text = extractTextContent(result);
           const results = parseSearchResults(text);
@@ -199,7 +191,9 @@ export function createFootnoteMcpTools(mcpClient: McpClient): ToolSet {
       }),
       execute: async ({ path }) => {
         try {
-          const result = await mcpClient.callTool("read_document", { path });
+          const result = await mcpClient.callTool("read_document", {
+            doc_id: path,
+          });
           const text = extractTextContent(result);
 
           return {

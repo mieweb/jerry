@@ -133,7 +133,7 @@ flowchart TD
 
 ## Slice 2: MCP Consume
 
-**Status:** Open — [PR #6](https://github.com/mieweb/jerry/pull/6) (awaiting review, 2026-07-09).
+**Status:** Open — [PR #6](https://github.com/mieweb/jerry/pull/6) (awaiting review). Worker/CLI MCP startup wiring landed; acceptance scenario verified manually (2026-07-13).
 
 **Branch:** `phase2/mcp-consume`
 
@@ -160,7 +160,7 @@ flowchart TD
 - Config: `mcp.servers[]` in privacy profile for server paths
 - Handle MCP tool errors gracefully (fallback to in-process if server unavailable)
 - Test: mock MCP server; integration test with real footnote (opt-in)
-- **Remaining:** Worker/CLI startup wiring to spawn footnote MCP and merge tools at session start
+- Worker/CLI startup wiring: `create-tools.ts` + `prepareMcpForRequest` / queue preload
 
 **Acceptance:**
 - `jerry search my notes about kubernetes` → invokes footnote `search_hybrid` via MCP → returns results
@@ -171,16 +171,17 @@ flowchart TD
 - [x] Footnote MCP tools mapped to Jerry `ToolSet`
 - [x] MCP config wired into privacy profiles (`McpServerConfig` type + `resolveMcpServers`)
 - [x] `createJerryTools` accepts optional `mcpTools` merge hook
-- [ ] Worker/CLI startup wiring (spawn footnote MCP child, pass merged tools) — **gap before acceptance**
-- [ ] Graceful fallback when MCP server unavailable (logic in `createMcpClient`; needs startup wiring)
+- [x] Worker/CLI startup wiring (spawn footnote MCP child, pass merged tools)
+- [x] Graceful fallback when MCP server unavailable (`createMcpClient` → null; `ensureMcpTools` keeps `search_memory`)
 - [x] Mock MCP tests pass; footnote integration test documented (opt-in: `JERRY_INTEGRATION=mcp`)
 - [x] CLI `--verbose` / `JERRY_VERBOSE` tool activity display (post-PR, `vendor/cloud`)
 - [x] SSE streaming of tool-call events to CLI (post-PR, `vendor/cloud`)
 - [x] Typecheck/CI fixes for MCP exports and test strictness (post-PR)
-- [ ] Acceptance scenario verified manually
+- [x] Acceptance scenario verified manually (2026-07-13)
 
 **Notes / deviations:**
-- PR #6 lands MCP **library** and config scaffolding; end-to-end `search_hybrid` requires worker wiring commit
+- Worker wires MCP via `packages/jerry-app/src/create-tools.ts`: `ensureMcpTools` before `/messages` + `/enqueue` and queue turns; `createJerryToolsWithMcp` merges tools (drops `search_memory` when `search_hybrid` loads)
+- CLI path: local `jerry` / `pnpm jerry:ask` hits the same worker; helper `scripts/jerry-footnote.sh` sets `FOOTNOTE_DB` and starts the worker
 - Footnote hybrid search uses footnote's `.footnote` index (separate from Jerry's Slice 1 vector store)
 - MCP requires stdio transport (local/CLI); Cloudflare Workers cannot spawn child processes
 - Post-PR: `jerry --verbose` shows tool/MCP activity; `--debug` adds raw JSON

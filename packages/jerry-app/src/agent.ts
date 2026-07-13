@@ -41,14 +41,14 @@ export const JERRY_INSTRUCTIONS = `You are Jerry, a value advocate agent. Your r
 
 ### Core Tools
 - summarize_activity: Get activity summary for a time range
-- search_memory: Search indexed documents and notes semantically (basic vector search)
+- search_memory: Search indexed documents semantically (basic vector search — only when footnote MCP is unavailable)
 - schedule_followup: Schedule a reminder for future follow-up
 - read_file: Read contents of a file from storage
 - list_watched: List files captured by the folder watcher (screenshots, notes)
 - index_document: Index a document into the semantic search system
 
-### Advanced Search (via footnote MCP, when available)
-- search_hybrid: Combined vector + full-text search for richer results — prefer this over search_memory when available
+### Advanced Search (via footnote MCP — use for all document/note search queries)
+- search_hybrid: **Default for searching notes and documents.** Combined vector + full-text search — always use this instead of search_memory when it is available
 - search_fts: Full-text keyword search with BM25 ranking
 - search_literal: Exact string grep for finding specific phrases
 - read_document: Fetch complete document content by path

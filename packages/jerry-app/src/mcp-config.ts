@@ -7,9 +7,21 @@
 
 import type { McpServerConfig, PrivacyProfile } from "@mieweb/jerry-agent-runtime";
 import { resolve, dirname } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Resolve FOOTNOTE_DB to an absolute path (expands ~).
+ */
+export function resolveFootnoteDbPath(): string {
+  const raw = process.env.FOOTNOTE_DB || "./.footnote";
+  if (raw.startsWith("~/")) {
+    return resolve(homedir(), raw.slice(2));
+  }
+  return resolve(raw);
+}
 
 /**
  * Default footnote MCP server configuration.
@@ -17,12 +29,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  */
 export function getDefaultFootnoteConfig(): McpServerConfig {
   const footnoteRoot = resolve(__dirname, "../../../vendor/footnote");
+  const dbPath = resolveFootnoteDbPath();
   return {
     name: "footnote",
     command: "node",
-    args: [resolve(footnoteRoot, "bin/docidx.js"), "mcp"],
+    args: [
+      resolve(footnoteRoot, "bin/docidx.js"),
+      "mcp",
+      "--db",
+      dbPath,
+    ],
     env: {
-      FOOTNOTE_DB: process.env.FOOTNOTE_DB || "./.footnote",
+      FOOTNOTE_DB: dbPath,
     },
   };
 }

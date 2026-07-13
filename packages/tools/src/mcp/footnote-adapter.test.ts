@@ -96,12 +96,33 @@ describe("createFootnoteMcpTools", () => {
 
       assert.equal(calls.length, 1);
       assert.equal(calls[0].name, "search_hybrid");
-      assert.deepEqual(calls[0].args, { query: "kubernetes", limit: 5 });
+      assert.deepEqual(calls[0].args, { query: "kubernetes", k: 5 });
 
       assert.equal(result.source, "footnote-mcp");
       assert.equal(result.method, "hybrid");
       assert.equal(result.count, 1);
       assert.equal(result.results[0].path, "/doc1.md");
+    });
+
+    it("coerces string limit from local models", async () => {
+      const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+      const mockClient = createMockClient((name, args) => {
+        calls.push({ name, args });
+        return { content: [{ type: "text", text: "[]" }] };
+      });
+
+      const tools = createFootnoteMcpTools(mockClient);
+      // Simulate AI SDK validating args through the tool parameters schema
+      const schema = tools.search_hybrid.parameters;
+      assert.ok(schema);
+      const parsed = schema.parse({
+        query: "fable 5",
+        limit: "10",
+      });
+      assert.equal(parsed.limit, 10);
+
+      await executeTool(tools.search_hybrid, parsed);
+      assert.deepEqual(calls[0].args, { query: "fable 5", k: 10 });
     });
 
     it("handles MCP errors gracefully", async () => {
@@ -164,7 +185,7 @@ describe("createFootnoteMcpTools", () => {
       await executeTool(tools.search_literal, { pattern: "TODO:" });
 
       assert.equal(calls[0].name, "search_literal");
-      assert.equal(calls[0].args.pattern, "TODO:");
+      assert.equal(calls[0].args.query, "TODO:");
     });
   });
 

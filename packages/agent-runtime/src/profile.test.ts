@@ -27,6 +27,10 @@ describe("DEFAULT_PRIVACY_PROFILE", () => {
       read_file: "local",
       list_watched: "local",
       index_document: "local",
+      search_hybrid: "local",
+      search_fts: "local",
+      search_literal: "local",
+      read_document: "local",
       drive: "ask",
       youtube: "ask",
     });
