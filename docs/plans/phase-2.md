@@ -150,7 +150,7 @@ flowchart TD
 - `packages/tools/src/mcp/footnote-adapter.ts` (new)
 - `packages/jerry-app/src/mcp-config.ts` (new)
 - `packages/tools/package.json` — add `@modelcontextprotocol/sdk`
-- `vendor/cloud` — SSE tool streaming + `--verbose` CLI (post-PR follow-up, submodule)
+- `vendor/cloud` — stay pinned to `ecb8aa7` (same as `development` / [mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1)); do not pin unpushed local commits
 
 **Tasks:**
 - Add MCP client dependency
@@ -174,8 +174,8 @@ flowchart TD
 - [x] Worker/CLI startup wiring (spawn footnote MCP child, pass merged tools)
 - [x] Graceful fallback when MCP server unavailable (`createMcpClient` → null; `ensureMcpTools` keeps `search_memory`)
 - [x] Mock MCP tests pass; footnote integration test documented (opt-in: `JERRY_INTEGRATION=mcp`)
-- [x] CLI `--verbose` / `JERRY_VERBOSE` tool activity display (post-PR, `vendor/cloud`)
-- [x] SSE streaming of tool-call events to CLI (post-PR, `vendor/cloud`)
+- [ ] CLI `--verbose` / `JERRY_VERBOSE` tool activity display — blocked on pushing SSE/verbose commit to `mieweb/cloud` (`feature/cloud-agent`)
+- [ ] SSE streaming of tool-call events to CLI — same upstream dependency
 - [x] Typecheck/CI fixes for MCP exports and test strictness (post-PR)
 - [x] Acceptance scenario verified manually (2026-07-13)
 
@@ -184,7 +184,7 @@ flowchart TD
 - CLI path: local `jerry` / `pnpm jerry:ask` hits the same worker; helper `scripts/jerry-footnote.sh` sets `FOOTNOTE_DB` and starts the worker
 - Footnote hybrid search uses footnote's `.footnote` index (separate from Jerry's Slice 1 vector store)
 - MCP requires stdio transport (local/CLI); Cloudflare Workers cannot spawn child processes
-- Post-PR: `jerry --verbose` shows tool/MCP activity; `--debug` adds raw JSON
+- `vendor/cloud` pin stays at `ecb8aa7` (fetchable). Local SSE/`--verbose` commit `63e0642` was never pushed to `mieweb/cloud` and broke CI submodule checkout; leave that work for an upstream cloud PR / later Jerry pin bump
 
 ---
 
