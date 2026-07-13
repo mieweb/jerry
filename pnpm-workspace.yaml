@@ -7,6 +7,11 @@ packages:
   - "vendor/ozwellai-api/spec"
   - "vendor/ozwellai-api/clients/typescript"
 
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  workerd: true
+
 onlyBuiltDependencies:
   - better-sqlite3
   - esbuild

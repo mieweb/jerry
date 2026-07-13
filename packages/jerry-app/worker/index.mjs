@@ -11,8 +11,32 @@
 
 import { hostAgent } from "@mieweb/cloud-agent";
 import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
-import { createJerryTools, getEmbedding } from "@mieweb/jerry-tools/runtime";
+import { getEmbedding } from "@mieweb/jerry-tools/runtime";
 import { jerry } from "../src/agent.ts";
+import {
+  createJerryToolsWithMcp,
+  ensureMcpTools,
+} from "../src/create-tools.ts";
+
+/**
+ * Preload MCP tools before agent turns that need external search.
+ */
+async function prepareMcpForRequest(request, url) {
+  if (request.method !== "POST") return;
+  if (
+    !url.pathname.includes("/v1/sessions/") ||
+    (!url.pathname.endsWith("/messages") && !url.pathname.endsWith("/enqueue"))
+  ) {
+    return;
+  }
+
+  try {
+    const body = await request.clone().json();
+    await ensureMcpTools(body.profile);
+  } catch {
+    await ensureMcpTools();
+  }
+}
 
 /**
  * Create the host wiring for Jerry.
@@ -23,7 +47,7 @@ const host = hostAgent({
   createRuntime: (profile) => {
     return resolveRuntime(mergeProfile(profile));
   },
-  createTools: createJerryTools,
+  createTools: createJerryToolsWithMcp,
   store: {
     // Store bindings are resolved from env at request time
     // This is a placeholder; actual db/vectors come from env
@@ -153,6 +177,7 @@ export default {
     // Delegate to hostAgent for all agent routes
     // Routes: /v1/sessions/:id/messages, /v1/sessions/:id/enqueue, /v1/sessions/:id/status, /v1/events
     try {
+      await prepareMcpForRequest(request, url);
       return await host.handleFetch(request, env);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -170,6 +195,8 @@ export default {
    */
   async queue(batch, env) {
     try {
+      // Queue turns may run after enqueue; ensure MCP child is still warm.
+      await ensureMcpTools();
       await host.handleQueue(batch, env);
     } catch (err) {
       console.error("Queue error:", err);

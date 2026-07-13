@@ -25,6 +25,20 @@ export type EgressPolicy = "deny" | "allow-model" | "allow-tools";
 export type ToolEgress = "local" | "ask" | "allow";
 
 /**
+ * MCP server configuration for stdio-based servers.
+ */
+export interface McpServerConfig {
+  /** Unique name for this server (e.g. "footnote") */
+  name: string;
+  /** Command to execute (e.g. "node") */
+  command: string;
+  /** Arguments to pass to the command (e.g. ["bin/docidx.js", "mcp"]) */
+  args?: string[];
+  /** Environment variables to set for the process */
+  env?: Record<string, string>;
+}
+
+/**
  * Privacy profile configuration.
  * Names the runtime and what may leave the machine.
  * See plan.md §4 for full design.
@@ -42,6 +56,10 @@ export interface PrivacyProfile {
   endpoint?: string;
   /** Ozwell agent ID (optional for ozwell runtime) */
   agentId?: string;
+  /** MCP server configurations for tool providers */
+  mcp?: {
+    servers?: McpServerConfig[];
+  };
 }
 
 /**
