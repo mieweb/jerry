@@ -6,7 +6,8 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "jerry": "./bin/jerry.js"
+    "jerry": "./bin/jerry.js",
+    "jerry-mcp": "./bin/jerry-mcp.js"
   },
   "exports": {
     ".": {
@@ -18,6 +19,7 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@mieweb/cloud-agent-cli": "workspace:*"
+    "@mieweb/cloud-agent-cli": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
   }
 }

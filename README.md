@@ -29,6 +29,35 @@ Verify the worker: `curl http://localhost:8787/health`
 
 See [docs/chats/chat8 - running_the_program.md](docs/chats/chat8%20-%20running_the_program.md) for troubleshooting (model selection, tool errors, session resume).
 
+### Use Jerry as an MCP server (Cursor / Claude Desktop)
+
+Jerry exposes `summarize_activity`, `search_memory`, and `schedule_followup` over the [Model Context Protocol](https://modelcontextprotocol.io). The worker must be running (`pnpm dev`); the CLI speaks MCP over stdio and forwards tool calls to the worker's `/v1/mcp` endpoint.
+
+```bash
+# Terminal 1 — worker (required)
+pnpm dev
+
+# Optional: run the stdio MCP bridge directly
+export NODE_OPTIONS='--import tsx'
+node packages/cli/bin/jerry-mcp.js
+```
+
+Add to Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "jerry": {
+      "command": "node",
+      "args": ["packages/cli/bin/jerry-mcp.js"],
+      "env": { "JERRY_URL": "http://127.0.0.1:8787" }
+    }
+  }
+}
+```
+
+Full setup, HTTP transport, and limitations: [docs/mcp-server.md](docs/mcp-server.md). Command reference: [docs/manual.md §18](docs/manual.md#18-phase-2-slice-3--mcp-expose).
+
 ---
 
 ## Development

@@ -7,3 +7,9 @@
 
 export { McpClient, createMcpClient, type McpToolInfo, type McpCallResult } from "./client.js";
 export { createFootnoteMcpTools, FOOTNOTE_TOOL_NAMES } from "./footnote-adapter.js";
+export {
+  createJerryMcpServer,
+  handleJerryMcpHttp,
+  JERRY_MCP_TOOL_NAMES,
+  type JerryMcpToolName,
+} from "./server.js";

@@ -23,6 +23,7 @@
 15. [Environment Variables](#15-environment-variables)
 16. [Configuration Files](#16-configuration-files)
 17. [Submodule Management](#17-submodule-management)
+18. [Phase 2 Slice 3 — MCP Expose](#18-phase-2-slice-3--mcp-expose)
 
 ---
 
@@ -262,6 +263,19 @@ node packages/cli/bin/jerry.js --config
 ```
 
 Displays the resolved configuration Jerry is using (model, runtime, session, etc.). Useful for debugging misconfigured environments.
+
+#### Start the MCP server (stdio)
+
+```bash
+export NODE_OPTIONS='--import tsx'
+node packages/cli/bin/jerry.js mcp
+# or equivalently:
+node packages/cli/bin/jerry-mcp.js
+```
+
+Starts Jerry as an MCP server over stdin/stdout for Cursor, Claude Desktop, or any MCP client. This is a **thin proxy**: tool calls are forwarded to the running worker's `/v1/mcp` endpoint (which owns the database and vector index). The worker must be running on `JERRY_URL` (default `http://127.0.0.1:8787`).
+
+Exposed tools: `summarize_activity`, `search_memory`, `schedule_followup`. See [Section 18](#18-phase-2-slice-3--mcp-expose) and [mcp-server.md](./mcp-server.md).
 
 ### CLI Flags Reference
 
@@ -1018,6 +1032,30 @@ curl -X POST http://localhost:8787/v1/index \
 
 Generates an embedding via Ollama (`nomic-embed-text`) and upserts the vector into the index. Requires Ollama running with `nomic-embed-text` pulled. Also stores content in bucket if the bucket binding is available.
 
+### MCP endpoint (Phase 2 Slice 3)
+
+The worker serves Jerry tools over the MCP Streamable HTTP transport at `/v1/mcp` (stateless, JSON responses). Remote MCP clients can connect directly; the `jerry mcp` CLI bridges stdio clients to this endpoint.
+
+List tools (MCP `tools/list`):
+
+```bash
+curl -s -X POST http://localhost:8787/v1/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+Call a tool (MCP `tools/call`):
+
+```bash
+curl -s -X POST http://localhost:8787/v1/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"summarize_activity","arguments":{"range":"last 2 hours"}}}'
+```
+
+For Cursor/Claude Desktop setup, use the stdio bridge (`jerry mcp`) instead of calling HTTP directly. See [mcp-server.md](./mcp-server.md).
+
 ---
 
 ## 15. Environment Variables
@@ -1115,6 +1153,95 @@ Shows the current SHA, working tree state, and branch (if any) for each submodul
 
 ---
 
+## 18. Phase 2 Slice 3 — MCP Expose
+
+Jerry can act as an **MCP server** so external agents (Cursor, Claude Desktop, other MCP clients) can call a subset of Jerry tools. This is the inverse of Slice 2 (MCP Consume), where Jerry calls footnote's hybrid search.
+
+**Architecture:** The worker owns tool execution at `POST /v1/mcp`. The `jerry mcp` command (or `jerry-mcp` binary) serves MCP over stdio and proxies requests to the worker. Both paths use the same database and vector index.
+
+### Exposed tools
+
+| Tool | Description |
+|------|-------------|
+| `summarize_activity` | Summarize user activity for a natural-language time range |
+| `search_memory` | Semantic search over indexed documents and screenshots |
+| `schedule_followup` | Schedule a future follow-up (agent session only — see limitations) |
+
+Internal tools (`read_file`, `list_watched`, `index_document`) are not exposed.
+
+### Prerequisites
+
+- [ ] Worker running: `pnpm dev` on `http://127.0.0.1:8787`
+- [ ] For `search_memory`: Ollama running with `nomic-embed-text` pulled; indexed content in the vector store (see [Section 13](#13-phase-2-slice-1--manual-acceptance-test))
+- [ ] `NODE_OPTIONS='--import tsx'` when invoking CLI binaries from the monorepo
+
+### Step 1 — Start the worker
+
+```bash
+pnpm dev
+```
+
+Verify:
+
+```bash
+curl http://localhost:8787/health
+```
+
+### Step 2 — Configure Cursor (stdio)
+
+Add to `~/.cursor/mcp.json` or the project `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "jerry": {
+      "command": "node",
+      "args": ["packages/cli/bin/jerry-mcp.js"],
+      "env": { "JERRY_URL": "http://127.0.0.1:8787" }
+    }
+  }
+}
+```
+
+Reload MCP servers in Cursor. You should see `summarize_activity`, `search_memory`, and `schedule_followup`.
+
+### Step 3 — Invoke a tool from Cursor
+
+Ask the Cursor agent to call `summarize_activity` with `{ "range": "last 2 hours" }`, or run the MCP tool picker if your client exposes it.
+
+Expected: a JSON activity summary drawn from ingested events (collector + ActivityWatch data if present).
+
+### Step 4 — Verify via HTTP (optional)
+
+With the worker running:
+
+```bash
+curl -s -X POST http://localhost:8787/v1/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+### Acceptance checklist
+
+- [ ] Cursor (or another MCP client) lists the three exposed tools
+- [ ] `summarize_activity` returns a summary when the worker has activity data
+- [ ] `search_memory` returns indexed documents when the vector store is populated
+- [ ] Unit tests pass: `pnpm --filter @mieweb/jerry-tools test -- server.test && pnpm --filter @mieweb/jerry-app test -- mcp-handler`
+- [ ] **Acceptance scenario verified manually** ← this section completes this item
+
+### Limitations
+
+| Topic | Behaviour |
+|-------|-----------|
+| `schedule_followup` over `/v1/mcp` | Requires a Durable Object agent session; returns a clear error over the hosted MCP endpoint. Works in a normal Jerry agent session. |
+| Worker dependency | Both stdio and HTTP transports need the worker running. The CLI proxy does not use a separate local database. |
+| HTTP transport | Stateless (fresh server per request), matching the Cloudflare Workers execution model. |
+
+More detail: [mcp-server.md](./mcp-server.md).
+
+---
+
 ## Quick Reference Card
 
 ```
@@ -1146,4 +1273,9 @@ pnpm run ci   # all three + install
 # Infrastructure (mieweb target)
 pnpm --filter @mieweb/cloud-os infra:up
 pnpm --filter @mieweb/cloud-os infra:down
+
+# MCP server (worker must be running)
+export NODE_OPTIONS='--import tsx'
+node packages/cli/bin/jerry-mcp.js
+# HTTP: POST http://localhost:8787/v1/mcp
 ```

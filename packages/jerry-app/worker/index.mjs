@@ -174,6 +174,20 @@ export default {
       return json({ ok: true, id: docId, path, embeddingDimensions: embedding.length });
     }
 
+    // POST /v1/mcp — expose Jerry tools over the MCP Streamable HTTP transport
+    if (url.pathname === "/v1/mcp") {
+      try {
+        const { handleMcpRequest } = await import("../src/mcp-handler.ts");
+        return await handleMcpRequest(request, env);
+      } catch (err) {
+        console.error("MCP endpoint error:", err);
+        return json(
+          { error: err instanceof Error ? err.message : String(err) },
+          500
+        );
+      }
+    }
+
     // Delegate to hostAgent for all agent routes
     // Routes: /v1/sessions/:id/messages, /v1/sessions/:id/enqueue, /v1/sessions/:id/status, /v1/events
     try {
