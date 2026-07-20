@@ -190,6 +190,8 @@ flowchart TD
 
 ## Slice 3: MCP Expose
 
+**Status:** Implemented on `phase2/mcp-expose` (branched from `development` after PR #6 merge). Both transports verified end-to-end against a live worker (2026-07-13).
+
 **Branch:** `phase2/mcp-expose`
 
 **PR target:** `development`
@@ -199,15 +201,19 @@ flowchart TD
 **Goal:** Expose Jerry tools as an MCP server for external consumption (Cursor, Claude Desktop, other agents).
 
 **Files:**
-- `packages/cli/src/mcp-server.ts` (new)
-- `packages/jerry-app/src/mcp-handler.ts` (new)
-- `bin/jerry-mcp.js` (new: stdio entry)
+- `packages/tools/src/mcp/server.ts` (new: `createJerryMcpServer` + `handleJerryMcpHttp`)
+- `packages/cli/src/mcp-server.ts` (new: stdio proxy to worker `/v1/mcp`)
+- `packages/cli/bin/jerry-mcp.js` (new: stdio entry)
+- `packages/jerry-app/src/mcp-handler.ts` (new: worker `/v1/mcp` handler)
+- `packages/jerry-app/worker/index.mjs` (route `/v1/mcp`)
+- `packages/cli/src/run.ts` (early-dispatch `jerry mcp`)
+- `docs/mcp-server.md` (new: setup docs)
 
 **Tasks:**
-- Implement Jerry MCP server using `@modelcontextprotocol/sdk` Server class
+- Implement Jerry MCP server using `@modelcontextprotocol/sdk` `McpServer` class
 - Expose tool subset: `summarize_activity`, `search_memory`, `schedule_followup`
 - CLI mode: `jerry mcp` (or `jerry-mcp` binary) starts stdio server
-- Hosted mode: `/v1/mcp` HTTP endpoint with SSE streaming
+- Hosted mode: `/v1/mcp` HTTP endpoint (Streamable HTTP, Web Standard transport)
 - Document MCP server setup for Cursor/Claude Desktop integration
 - Test: MCP client → Jerry server → tool execution
 
@@ -215,13 +221,19 @@ flowchart TD
 - Configure Jerry as MCP server in Cursor; invoke `summarize_activity` from Cursor agent
 
 **PR checklist:**
-- [ ] Jerry MCP server implemented with `@modelcontextprotocol/sdk`
-- [ ] Tools exposed: `summarize_activity`, `search_memory`, `schedule_followup`
-- [ ] `jerry mcp` CLI command starts stdio server
-- [ ] HTTP endpoint `/v1/mcp` with SSE streaming
-- [ ] Documentation for Cursor/Claude Desktop setup
-- [ ] MCP client tests pass
-- [ ] Acceptance scenario verified manually
+- [x] Jerry MCP server implemented with `@modelcontextprotocol/sdk`
+- [x] Tools exposed: `summarize_activity`, `search_memory`, `schedule_followup`
+- [x] `jerry mcp` CLI command starts stdio server
+- [x] HTTP endpoint `/v1/mcp` (Streamable HTTP / Web Standard transport)
+- [x] Documentation for Cursor/Claude Desktop setup (`docs/mcp-server.md`)
+- [x] MCP client tests pass (`server.test.ts`, `mcp-handler.test.ts`)
+- [x] Acceptance scenario verified manually (stdio proxy → worker → `summarize_activity` returned live activity, 2026-07-13)
+
+**Notes / deviations:**
+- **Single MCP engine in the worker.** The CLI stays a thin client (consistent with the rest of Jerry): `jerry mcp` is a stdio↔HTTP **proxy** that forwards tool calls to the worker's `/v1/mcp`, which owns `DB`/`VECTORS`. A self-contained CLI server would read a different (empty) local DB than the collector/worker, so proxying is more correct. The worker must be running (`JERRY_URL`, default `http://127.0.0.1:8787`).
+- **Shared factory** `createJerryMcpServer(ctx)` in `@mieweb/jerry-tools/mcp` builds the `McpServer`; `handleJerryMcpHttp(request, ctx)` wraps it with the Web Standard Streamable HTTP transport so the SDK dependency stays in `jerry-tools` (as in Slice 2) and jerry-app imports no SDK directly.
+- **HTTP transport is stateless** (`sessionIdGenerator: undefined`, `enableJsonResponse: true`) — a fresh server/transport per request, matching the Cloudflare Workers model. Not long-lived SSE.
+- **`schedule_followup` over hosted `/v1/mcp`** has no Durable Object session, so `scheduleWake` throws a clear error there; the tool still works from a normal Jerry agent session. `summarize_activity` and `search_memory` are fully functional over both transports.
 
 ---
 

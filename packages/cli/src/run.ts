@@ -15,6 +15,15 @@ const VERSION = "0.1.0";
  * Run the Jerry CLI.
  */
 export async function run(): Promise<void> {
+  const args = process.argv.slice(2);
+
+  // `jerry mcp` starts the stdio MCP server instead of the message CLI.
+  if (args[0] === "mcp") {
+    const { startMcpServer } = await import("./mcp-server.js");
+    await startMcpServer();
+    return;
+  }
+
   const config = loadConfig();
 
   await agentRun({

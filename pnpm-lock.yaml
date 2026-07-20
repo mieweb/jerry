@@ -50,6 +50,9 @@ importers:
       '@mieweb/cloud-agent-cli':
         specifier: workspace:*
         version: link:../../vendor/cloud/packages/cloud-agent-cli
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@3.25.76)
 
   packages/collector:
     dependencies:
