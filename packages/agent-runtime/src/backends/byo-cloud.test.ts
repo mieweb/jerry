@@ -1,4 +1,4 @@
-import { describe, it, mock, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { createByoCloudRuntime } from "./byo-cloud.ts";
 import type { PrivacyProfile } from "../types.ts";

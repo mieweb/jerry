@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "pnpm --filter @mieweb/jerry-app dev",
     "predev": "lsof -ti:8787 | xargs kill -9 2>/dev/null || true",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "pnpm --filter ozwellai build && tsc --noEmit",
     "lint": "eslint .",
     "test": "pnpm -r --if-present test",
     "ci": "bash scripts/ci.sh",
