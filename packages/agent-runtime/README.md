@@ -14,11 +14,13 @@ This package implements the "thin port" layer (L1) from [plan.md §3/§5](../../
 
 | Runtime | Status | Description |
 |---------|--------|-------------|
-| `local` | ✅ Phase 0 | Vercel AI SDK over local Ollama (OpenAI-compatible) |
-| `byo-cloud` | 🔜 Phase 1+ | Same loop, user's OpenAI-compatible endpoint |
-| `ozwell` | 🔜 Phase 1+ | Managed path via Ozwell agent system |
+| `local` | ✅ | Vercel AI SDK over local Ollama (OpenAI-compatible) |
+| `byo-cloud` | ✅ | Same AI SDK loop, user's OpenAI-compatible endpoint with API key |
+| `ozwell` | ✅ | AI SDK over Ozwell Manager endpoint with local Ollama fallback |
 
 ## Usage
+
+### Local (default)
 
 ```ts
 import { resolveRuntime, DEFAULT_PRIVACY_PROFILE } from "@mieweb/jerry-agent-runtime";
@@ -31,6 +33,41 @@ for await (const event of runtime.runTurn({ messages: [{ role: "user", content: 
   }
 }
 ```
+
+### byo-cloud
+
+Use your own OpenAI-compatible endpoint:
+
+```ts
+import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
+
+const runtime = resolveRuntime(mergeProfile({
+  runtime: "byo-cloud",
+  model: "https://api.openai.com/v1#gpt-4o",
+  apiKey: process.env.OPENAI_API_KEY,
+}));
+```
+
+Environment variables: `JERRY_API_KEY` or `OPENAI_API_KEY`.
+
+### ozwell
+
+Use Ozwell Manager for model inference:
+
+```ts
+import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
+
+const runtime = resolveRuntime(mergeProfile({
+  runtime: "ozwell",
+  model: "gpt-4.1-mini",
+  apiKey: process.env.OZWELL_API_KEY, // ozw_ or agnt_key-
+  // endpoint defaults to https://ozwellapi.os.mieweb.org
+}));
+```
+
+Environment variables: `OZWELL_AGENT_KEY` (preferred) or `OZWELL_API_KEY`.
+
+If Ozwell is unavailable (network/auth error), the runtime automatically falls back to local Ollama with a warning message.
 
 ## Privacy profiles
 
@@ -45,4 +82,19 @@ The default profile runs fully local with no network egress:
 }
 ```
 
+For cloud runtimes (`byo-cloud` / `ozwell`), egress is automatically normalized to `allow-model` if left at `deny`.
+
 See [plan.md §4](../../plan.md) for the full trust and data-path control design.
+
+## Environment Variables
+
+| Variable | Runtime | Description |
+|----------|---------|-------------|
+| `JERRY_RUNTIME` | all | Override runtime: `local`, `byo-cloud`, `ozwell` |
+| `JERRY_MODEL` | all | Override model reference |
+| `JERRY_EGRESS` | all | Override egress policy: `deny`, `allow-model`, `allow-tools` |
+| `JERRY_API_KEY` | byo-cloud | API key for custom endpoint |
+| `OPENAI_API_KEY` | byo-cloud | Fallback API key (OpenAI convention) |
+| `OZWELL_API_KEY` | ozwell | Parent API key (`ozw_` prefix) |
+| `OZWELL_AGENT_KEY` | ozwell | Agent key (`agnt_key-` prefix, preferred) |
+| `OZWELL_ENDPOINT` | ozwell | Custom Ozwell endpoint (default: Manager host) |

@@ -1,16 +1,20 @@
 import type { AgentRuntime, PrivacyProfile } from "./types.ts";
 import { DEFAULT_PRIVACY_PROFILE } from "./profile.ts";
 import { createLocalRuntime } from "./backends/local.ts";
+import { createByoCloudRuntime } from "./backends/byo-cloud.ts";
+import { createOzwellRuntime } from "./backends/ozwell.ts";
 
 /**
  * Resolve a privacy profile to an AgentRuntime instance.
  *
- * Phase 0: Only the `local` backend is implemented.
- * `byo-cloud` and `ozwell` will throw until later phases.
+ * Supports three runtime backends:
+ * - `local`: Vercel AI SDK over local Ollama
+ * - `byo-cloud`: Vercel AI SDK over user's OpenAI-compatible endpoint
+ * - `ozwell`: Vercel AI SDK over Ozwell Manager endpoint with fallback to local
  *
  * @param profile - Privacy profile configuration. Defaults to DEFAULT_PRIVACY_PROFILE.
  * @returns An AgentRuntime instance for the specified backend.
- * @throws Error if the runtime is not implemented or unknown.
+ * @throws Error if the runtime is unknown or configuration is invalid.
  */
 export function resolveRuntime(
   profile: PrivacyProfile = DEFAULT_PRIVACY_PROFILE
@@ -20,21 +24,11 @@ export function resolveRuntime(
       return createLocalRuntime(profile);
 
     case "byo-cloud":
-      throw new Error(
-        `Runtime "byo-cloud" is not implemented in Phase 0. ` +
-          `Use runtime: "local" with a local Ollama instance.`
-      );
+      return createByoCloudRuntime(profile);
 
     case "ozwell":
-      if (!profile.endpoint) {
-        throw new Error(
-          `Runtime "ozwell" requires an "endpoint" field in the profile.`
-        );
-      }
-      throw new Error(
-        `Runtime "ozwell" is not implemented in Phase 0. ` +
-          `Use runtime: "local" with a local Ollama instance.`
-      );
+      // Ozwell has a default endpoint (Manager host), so no endpoint check needed
+      return createOzwellRuntime(profile);
 
     default:
       throw new Error(

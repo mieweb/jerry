@@ -239,6 +239,8 @@ flowchart TD
 
 ## Slice 4: Runtime Backends
 
+**Status:** Implemented on `phase2/runtime-backends` (branched from `development` after PR #7 merge).
+
 **Branch:** `phase2/runtime-backends`
 
 **PR target:** `development`
@@ -250,28 +252,41 @@ flowchart TD
 **Files:**
 - `packages/agent-runtime/src/backends/byo-cloud.ts` (new)
 - `packages/agent-runtime/src/backends/ozwell.ts` (new)
+- `packages/agent-runtime/src/backends/filter-tools.ts` (new: shared filterTools extract)
 - `packages/agent-runtime/src/resolve-runtime.ts` (update)
+- `packages/agent-runtime/src/profile.ts` (update: add helpers)
+- `packages/agent-runtime/src/types.ts` (update: add apiKey field)
+- `packages/cli/src/profile.ts` (update: env var wiring)
 
 **Tasks:**
 - Implement `byo-cloud` backend — same AI SDK loop, user-provided OpenAI-compatible endpoint
-- Implement `ozwell` backend — delegate to Ozwell agent system via `@mieweb/ozwellai` client
-- Initialize `vendor/ozwellai-api` submodule; generate client if needed
+- Implement `ozwell` backend — AI SDK over Ozwell Manager endpoint with local Ollama fallback
+- ~~Initialize `vendor/ozwellai-api` submodule~~ (already done; consume existing `ozwellai` package)
 - Update `resolveRuntime()` to handle all three profiles
-- Test: mock model endpoint for byo-cloud; mock Ozwell API for ozwell
+- Test: mock tests for byo-cloud and ozwell; opt-in live Ozwell test (`JERRY_OZWELL_TEST=1`)
 - Document profile configuration for each runtime
 
 **Acceptance:**
-- `jerry --profile byo-cloud` → model calls go to user's configured endpoint
-- `jerry --profile ozwell` → conversation delegated to Ozwell system
+- `JERRY_RUNTIME=byo-cloud JERRY_MODEL=https://api.openai.com/v1#gpt-4o OPENAI_API_KEY=... jerry "hello"` → model calls go to user's configured endpoint
+- `JERRY_RUNTIME=ozwell OZWELL_API_KEY=ozw_... jerry "hello"` → conversation via Ozwell Manager
+- Ozwell unavailable with Ollama running → fallback local with warning message
 
 **PR checklist:**
-- [ ] `byo-cloud` backend implemented with AI SDK
-- [ ] `ozwell` backend implemented with Ozwell client
-- [ ] `vendor/ozwellai-api` submodule initialized
-- [ ] `resolveRuntime()` handles all three profiles
-- [ ] Mock tests for both backends pass
-- [ ] Profile configuration documented
+- [x] `byo-cloud` backend implemented with AI SDK
+- [x] `ozwell` backend implemented with AI SDK + `ozwellai` for probe; Ollama fallback
+- [x] `vendor/ozwellai-api` submodule already initialized (consume-only)
+- [x] `resolveRuntime()` handles all three profiles
+- [x] Mock tests for both backends pass (79 tests total)
+- [x] Profile configuration documented (README.md)
 - [ ] Acceptance scenarios verified manually
+
+**Notes / deviations:**
+- **Default Ozwell endpoint:** `https://ozwellapi.os.mieweb.org` (Manager host). Not `tryozwell` (demo UI) or `api.ozwell.ai` (separate DB).
+- **Egress normalization:** When runtime is `byo-cloud` or `ozwell` and egress was left at default `deny`, it is automatically coerced to `allow-model` so model calls are legal.
+- **Ozwell fallback:** If Ozwell is unreachable (network/auth/5xx), the runtime emits a warning and falls back to local Ollama. Both backends must fail before an error is returned.
+- **API key resolution:** `profile.apiKey` → `OZWELL_AGENT_KEY` / `OZWELL_API_KEY` (ozwell) or `JERRY_API_KEY` / `OPENAI_API_KEY` (byo-cloud).
+- **Shared filterTools:** Extracted to `filter-tools.ts` and re-exported from `local.ts` for backwards compatibility.
+- **No vendor changes:** Consumed existing `ozwellai: workspace:*` package from `vendor/ozwellai-api/clients/typescript`.
 
 ---
 

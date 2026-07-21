@@ -1,6 +1,12 @@
 import type { PrivacyProfile } from "./types.ts";
 
 /**
+ * Default Ozwell API endpoint (Manager host).
+ * Use ozwellapi.os.mieweb.org for Ozwell Manager keys (ozw_ / agnt_key-).
+ */
+export const DEFAULT_OZWELL_ENDPOINT = "https://ozwellapi.os.mieweb.org";
+
+/**
  * Parsed model reference with provider info.
  */
 export interface ParsedModelRef {
@@ -108,4 +114,54 @@ export function mergeProfile(partial?: Partial<PrivacyProfile>): PrivacyProfile 
     // Ensure tools is properly merged (replace entirely if provided)
     tools: partial.tools ?? DEFAULT_PRIVACY_PROFILE.tools,
   };
+}
+
+/**
+ * Resolve API key from profile or environment variables.
+ *
+ * Priority for byo-cloud: profile.apiKey → JERRY_API_KEY → OPENAI_API_KEY
+ * Priority for ozwell: profile.apiKey → OZWELL_AGENT_KEY → OZWELL_API_KEY
+ *
+ * @param profile - Privacy profile
+ * @returns API key or undefined if not found
+ */
+export function resolveApiKey(profile: PrivacyProfile): string | undefined {
+  if (profile.apiKey) {
+    return profile.apiKey;
+  }
+
+  if (profile.runtime === "ozwell") {
+    // Agent key takes precedence for ozwell (scoped to agent)
+    return (
+      process.env.OZWELL_AGENT_KEY ??
+      process.env.OZWELL_API_KEY
+    );
+  }
+
+  if (profile.runtime === "byo-cloud") {
+    return (
+      process.env.JERRY_API_KEY ??
+      process.env.OPENAI_API_KEY
+    );
+  }
+
+  return undefined;
+}
+
+/**
+ * Normalize profile egress for cloud runtimes.
+ *
+ * When runtime is byo-cloud or ozwell and egress was left at default "deny",
+ * coerce to "allow-model" so model calls are permitted without requiring
+ * callers to explicitly set egress.
+ */
+export function normalizeProfile(profile: PrivacyProfile): PrivacyProfile {
+  // If using cloud runtime with default deny egress, upgrade to allow-model
+  if (
+    (profile.runtime === "byo-cloud" || profile.runtime === "ozwell") &&
+    profile.egress === "deny"
+  ) {
+    return { ...profile, egress: "allow-model" };
+  }
+  return profile;
 }

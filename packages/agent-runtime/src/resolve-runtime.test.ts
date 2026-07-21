@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveRuntime } from "./resolve-runtime.ts";
-import { DEFAULT_PRIVACY_PROFILE, mergeProfile } from "./profile.ts";
+import { DEFAULT_PRIVACY_PROFILE, DEFAULT_OZWELL_ENDPOINT, mergeProfile } from "./profile.ts";
 
 describe("resolveRuntime", () => {
   describe("local runtime", () => {
@@ -30,36 +30,75 @@ describe("resolveRuntime", () => {
   });
 
   describe("byo-cloud runtime", () => {
-    it("throws not implemented error", () => {
+    it("returns a runtime for URL-style model", () => {
       const profile = mergeProfile({
         runtime: "byo-cloud",
         model: "https://api.openai.com/v1#gpt-4o",
       });
+      const runtime = resolveRuntime(profile);
+      assert.ok(runtime);
+      assert.equal(runtime.profile.runtime, "byo-cloud");
+    });
+
+    it("normalizes egress to allow-model", () => {
+      const profile = mergeProfile({
+        runtime: "byo-cloud",
+        model: "https://api.openai.com/v1#gpt-4o",
+        egress: "deny",
+      });
+      const runtime = resolveRuntime(profile);
+      assert.equal(runtime.profile.egress, "allow-model");
+    });
+
+    it("throws for ollama-style model", () => {
+      const profile = mergeProfile({
+        runtime: "byo-cloud",
+        model: "ollama:qwen2.5",
+      });
       assert.throws(
         () => resolveRuntime(profile),
-        /byo-cloud.*not implemented in Phase 0/
+        /byo-cloud.*requires a URL-style model reference/
       );
     });
   });
 
   describe("ozwell runtime", () => {
-    it("throws not implemented error", () => {
+    it("returns a runtime with default endpoint", () => {
       const profile = mergeProfile({
         runtime: "ozwell",
-        endpoint: "https://tryozwell.os.mieweb.org",
+        model: "gpt-4.1-mini",
+        apiKey: "ozw_test_key",
       });
-      assert.throws(
-        () => resolveRuntime(profile),
-        /ozwell.*not implemented in Phase 0/
-      );
+      const runtime = resolveRuntime(profile);
+      assert.ok(runtime);
+      assert.equal(runtime.profile.runtime, "ozwell");
     });
 
-    it("throws if endpoint is missing", () => {
-      const profile = mergeProfile({ runtime: "ozwell" });
-      assert.throws(
-        () => resolveRuntime(profile),
-        /requires an "endpoint" field/
-      );
+    it("returns a runtime with explicit endpoint", () => {
+      const profile = mergeProfile({
+        runtime: "ozwell",
+        model: "gpt-4.1-mini",
+        endpoint: "https://custom.ozwell.example.com",
+        apiKey: "ozw_test_key",
+      });
+      const runtime = resolveRuntime(profile);
+      assert.ok(runtime);
+    });
+
+    it("uses Manager host as default endpoint", () => {
+      // Verify the constant is correct
+      assert.equal(DEFAULT_OZWELL_ENDPOINT, "https://ozwellapi.os.mieweb.org");
+    });
+
+    it("normalizes egress to allow-model", () => {
+      const profile = mergeProfile({
+        runtime: "ozwell",
+        model: "gpt-4.1-mini",
+        egress: "deny",
+        apiKey: "ozw_test_key",
+      });
+      const runtime = resolveRuntime(profile);
+      assert.equal(runtime.profile.egress, "allow-model");
     });
   });
 
