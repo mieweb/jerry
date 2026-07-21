@@ -18,7 +18,55 @@ This package implements the "thin port" layer (L1) from [plan.md §3/§5](../../
 | `byo-cloud` | ✅ | Same AI SDK loop, user's OpenAI-compatible endpoint with API key |
 | `ozwell` | ✅ | AI SDK over Ozwell Manager endpoint with local Ollama fallback |
 
-## Usage
+## CLI commands (from Jerry repo root)
+
+Worker must be running (`pnpm dev`). Helper:
+
+```bash
+alias jerry='NODE_OPTIONS="--import tsx" node packages/cli/bin/jerry.js'
+```
+
+### Local (default)
+
+```bash
+JERRY_RUNTIME=local \
+  JERRY_MODEL=ollama:qwen2.5:3b \
+  jerry "summarize my work from July 13th"
+```
+
+Default model when unset: `ollama:qwen2.5` (`DEFAULT_PRIVACY_PROFILE` in `src/profile.ts`).
+
+### Ozwell
+
+```bash
+unset OZWELL_AGENT_KEY   # avoid agnt_key overriding parent key
+
+JERRY_RUNTIME=ozwell \
+  JERRY_MODEL=gpt-4.1-mini \
+  OZWELL_API_KEY=ozw_your_key \
+  jerry "summarize my work from July 13th"
+```
+
+- Prefer **`ozw_` parent keys**. `agnt_key-` binds Ozwell-side persona/tools and often ignores Jerry tools.
+- Default endpoint: `https://ozwellapi.os.mieweb.org` (`DEFAULT_OZWELL_ENDPOINT`).
+- On auth/network failure: `[jerry] Ozwell unavailable…` then local Ollama fallback.
+
+```bash
+JERRY_RUNTIME=ozwell OZWELL_API_KEY=ozw_bad jerry "hello"
+```
+
+### BYO-cloud
+
+```bash
+JERRY_RUNTIME=byo-cloud \
+  JERRY_MODEL='https://api.openai.com/v1#gpt-4o' \
+  OPENAI_API_KEY=sk-... \
+  jerry "summarize my work from July 13th"
+```
+
+Model must be URL-style (`https://…#modelId`), not `ollama:…`.
+
+## Programmatic usage
 
 ### Local (default)
 
@@ -36,8 +84,6 @@ for await (const event of runtime.runTurn({ messages: [{ role: "user", content: 
 
 ### byo-cloud
 
-Use your own OpenAI-compatible endpoint:
-
 ```ts
 import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
 
@@ -48,11 +94,7 @@ const runtime = resolveRuntime(mergeProfile({
 }));
 ```
 
-Environment variables: `JERRY_API_KEY` or `OPENAI_API_KEY`.
-
 ### ozwell
-
-Use Ozwell Manager for model inference:
 
 ```ts
 import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
@@ -60,16 +102,10 @@ import { resolveRuntime, mergeProfile } from "@mieweb/jerry-agent-runtime";
 const runtime = resolveRuntime(mergeProfile({
   runtime: "ozwell",
   model: "gpt-4.1-mini",
-  apiKey: process.env.OZWELL_API_KEY, // ozw_ or agnt_key-
+  apiKey: process.env.OZWELL_API_KEY, // prefer ozw_
   // endpoint defaults to https://ozwellapi.os.mieweb.org
 }));
 ```
-
-Environment variables: `OZWELL_API_KEY` (preferred parent `ozw_` key) or `OZWELL_AGENT_KEY`.
-
-**Important:** Prefer `ozw_` parent keys. Agent keys (`agnt_key-`) bind Ozwell-side persona/tools (your registered agent) and often ignore Jerry's local tools like `summarize_activity` — which looks like “please provide ActivityWatch data” or “I'll gather…” then stop. Unset `OZWELL_AGENT_KEY` when testing with a parent key.
-
-If Ozwell is unavailable (network/auth error), the runtime probes first, prints a `[jerry] Ozwell unavailable…` notice, then falls back to local Ollama.
 
 ## Privacy profiles
 
@@ -80,7 +116,7 @@ The default profile runs fully local with no network egress:
   runtime: "local",
   model: "ollama:qwen2.5",
   egress: "deny",
-  tools: { aw: "local", footnote: "local", drive: "ask", youtube: "ask" }
+  tools: { /* see DEFAULT_PRIVACY_PROFILE */ }
 }
 ```
 
@@ -99,4 +135,4 @@ See [plan.md §4](../../plan.md) for the full trust and data-path control design
 | `OPENAI_API_KEY` | byo-cloud | Fallback API key (OpenAI convention) |
 | `OZWELL_API_KEY` | ozwell | Parent API key (`ozw_` prefix) — **preferred for Jerry** |
 | `OZWELL_AGENT_KEY` | ozwell | Agent key (`agnt_key-`); conflicts with Jerry local tools |
-| `OZWELL_ENDPOINT` | ozwell | Custom Ozwell endpoint (default: Manager host) |
+| `OZWELL_ENDPOINT` / `JERRY_ENDPOINT` | ozwell | Custom Ozwell endpoint (default: Manager host) |

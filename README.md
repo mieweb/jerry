@@ -6,7 +6,7 @@ Introducing Jerry: The Ozwell Agent That Explains Your Work—So You Don’t Hav
 
 ## Quick start
 
-Jerry runs as three local processes: **worker** (agent), **collector** (ActivityWatch ingest), and **CLI** (your prompts). You need a **tool-capable** Ollama model (`qwen2.5:3b` or `llama3.2:3b` — not `gemma3:4b`).
+Jerry runs as three local processes: **worker** (agent), **collector** (ActivityWatch ingest), and **CLI** (your prompts). You need a **tool-capable** Ollama model (`qwen2.5:3b` or `llama3.2:3b` — not `gemma3:4b`) for the default **local** runtime (and for Ozwell fallback).
 
 ```bash
 # Setup (once)
@@ -19,15 +19,88 @@ pnpm dev
 # Terminal 2 — collector (ActivityWatch must be running on localhost:5600)
 pnpm --filter @mieweb/jerry-collector dev
 
-# Terminal 3 — talk to Jerry
-export JERRY_MODEL=ollama:qwen2.5:3b
-export NODE_OPTIONS='--import tsx'
-node packages/cli/bin/jerry.js --debug summarize my last 2 hours
+# Terminal 3 — talk to Jerry (see runtime backends below)
+alias jerry='NODE_OPTIONS="--import tsx" node packages/cli/bin/jerry.js'
+jerry --debug summarize my last 2 hours
 ```
 
 Verify the worker: `curl http://localhost:8787/health`
 
 See [docs/chats/chat8 - running_the_program.md](docs/chats/chat8%20-%20running_the_program.md) for troubleshooting (model selection, tool errors, session resume).
+
+### Runtime backends (`local` / `ozwell` / `byo-cloud`)
+
+Jerry keeps the same tool loop (ActivityWatch, search, etc.) for all three. Only the **model endpoint** changes. Set profile via env vars (or `.jerry.json`).
+
+Default local model is `ollama:qwen2.5` in `packages/agent-runtime/src/profile.ts` (`DEFAULT_PRIVACY_PROFILE`). Override with `JERRY_MODEL`.
+
+```bash
+# Shared CLI helper (from repo root)
+alias jerry='NODE_OPTIONS="--import tsx" node packages/cli/bin/jerry.js'
+# Worker must be running: pnpm dev
+```
+
+#### 1. Local (Ollama) — default
+
+Nothing leaves the machine except localhost Ollama.
+
+```bash
+JERRY_RUNTIME=local \
+  JERRY_MODEL=ollama:qwen2.5:3b \
+  jerry "summarize my work from July 13th"
+```
+
+Omit `JERRY_RUNTIME` for the same default.
+
+#### 2. Ozwell (Manager host)
+
+Uses Ozwell as the cloud model (`https://ozwellapi.os.mieweb.org` by default). Prefer a parent key (`ozw_…`).
+
+```bash
+# Recommended: parent key so Jerry's local tools (summarize_activity, …) work
+unset OZWELL_AGENT_KEY   # important if you previously exported an agnt_key-
+
+JERRY_RUNTIME=ozwell \
+  JERRY_MODEL=gpt-4.1-mini \
+  OZWELL_API_KEY=ozw_your_key \
+  jerry "summarize my work from July 13th"
+```
+
+Notes:
+
+- **Prefer `OZWELL_API_KEY=ozw_…`**. Agent keys (`agnt_key-` / `OZWELL_AGENT_KEY`) bind an Ozwell-side agent persona and often skip Jerry tools (“please provide ActivityWatch data”).
+- Optional endpoint: `OZWELL_ENDPOINT=https://ozwellapi.os.mieweb.org` (Manager host; not `tryozwell` UI or `api.ozwell.ai` unless your keys live there).
+- If Ozwell is down or the key is bad, Jerry prints `[jerry] Ozwell unavailable…` and **falls back to local Ollama**.
+
+```bash
+# Force fallback path (expect notice + local Ollama)
+JERRY_RUNTIME=ozwell OZWELL_API_KEY=ozw_bad jerry "hello"
+```
+
+#### 3. BYO-cloud (your OpenAI-compatible endpoint)
+
+Same AI SDK loop; model URL form is `https://host/v1#modelId`.
+
+```bash
+JERRY_RUNTIME=byo-cloud \
+  JERRY_MODEL='https://api.openai.com/v1#gpt-4o' \
+  OPENAI_API_KEY=sk-... \
+  jerry "summarize my work from July 13th"
+```
+
+`JERRY_API_KEY` works as an alternative to `OPENAI_API_KEY`.
+
+| Variable | Used by | Purpose |
+| -------- | ------- | ------- |
+| `JERRY_RUNTIME` | all | `local` \| `ozwell` \| `byo-cloud` |
+| `JERRY_MODEL` | all | Model ref (`ollama:…`, Ozwell id, or `https://…#model`) |
+| `JERRY_EGRESS` | all | `deny` \| `allow-model` \| `allow-tools` (cloud runtimes auto-upgrade `deny` → `allow-model`) |
+| `OZWELL_API_KEY` | ozwell | Parent key (`ozw_…`) — preferred |
+| `OZWELL_AGENT_KEY` | ozwell | Agent key (`agnt_key-`) — not recommended for Jerry tools |
+| `OZWELL_ENDPOINT` | ozwell | Default Manager host if unset |
+| `OPENAI_API_KEY` / `JERRY_API_KEY` | byo-cloud | API key for your endpoint |
+
+Package-level API details: [`packages/agent-runtime/README.md`](packages/agent-runtime/README.md). Phase 2 Slice 4 notes: [`docs/plans/phase-2.md`](docs/plans/phase-2.md).
 
 ### Use Jerry as an MCP server (Cursor / Claude Desktop)
 
