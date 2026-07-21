@@ -6,6 +6,9 @@ set -euo pipefail
 echo "==> Installing dependencies"
 pnpm install --frozen-lockfile
 
+echo "==> Building ozwellai (types/runtime ship from dist/, which is gitignored)"
+pnpm --filter ozwellai build
+
 echo "==> Type checking"
 pnpm typecheck
 

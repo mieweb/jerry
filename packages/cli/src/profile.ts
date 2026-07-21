@@ -17,6 +17,10 @@ export interface JerryConfig {
     runtime?: string;
     model?: string;
     egress?: string;
+    /** API key for byo-cloud/ozwell endpoints */
+    apiKey?: string;
+    /** Ozwell endpoint (defaults to Manager host) */
+    endpoint?: string;
   };
 }
 
@@ -71,12 +75,55 @@ export function loadConfig(): JerryConfig {
     config.url = process.env.JERRY_URL;
   }
 
-  if (process.env.JERRY_RUNTIME || process.env.JERRY_MODEL || process.env.JERRY_EGRESS) {
+  // Check for any profile-related environment variables
+  const hasProfileEnvVars =
+    process.env.JERRY_RUNTIME ||
+    process.env.JERRY_MODEL ||
+    process.env.JERRY_EGRESS ||
+    process.env.JERRY_ENDPOINT ||
+    process.env.OZWELL_ENDPOINT ||
+    process.env.JERRY_API_KEY ||
+    process.env.OZWELL_API_KEY ||
+    process.env.OZWELL_AGENT_KEY ||
+    process.env.OPENAI_API_KEY;
+
+  if (hasProfileEnvVars) {
+    // Resolve endpoint: JERRY_ENDPOINT > OZWELL_ENDPOINT > config
+    const endpoint =
+      process.env.JERRY_ENDPOINT ??
+      process.env.OZWELL_ENDPOINT ??
+      config.profile?.endpoint;
+
+    // Resolve API key based on runtime
+    // For ozwell: OZWELL_API_KEY > OZWELL_AGENT_KEY > JERRY_API_KEY
+    //   (parent ozw_ preferred — Jerry owns tools; agnt_key injects Ozwell persona)
+    // For byo-cloud: JERRY_API_KEY > OPENAI_API_KEY
+    const runtime = process.env.JERRY_RUNTIME ?? config.profile?.runtime;
+    let apiKey = config.profile?.apiKey;
+
+    if (runtime === "ozwell") {
+      apiKey =
+        process.env.OZWELL_API_KEY ??
+        process.env.OZWELL_AGENT_KEY ??
+        process.env.JERRY_API_KEY ??
+        apiKey;
+    } else if (runtime === "byo-cloud") {
+      apiKey =
+        process.env.JERRY_API_KEY ??
+        process.env.OPENAI_API_KEY ??
+        apiKey;
+    } else {
+      // For other runtimes, check JERRY_API_KEY
+      apiKey = process.env.JERRY_API_KEY ?? apiKey;
+    }
+
     config.profile = {
       ...config.profile,
       runtime: process.env.JERRY_RUNTIME ?? config.profile?.runtime,
       model: process.env.JERRY_MODEL ?? config.profile?.model,
       egress: process.env.JERRY_EGRESS ?? config.profile?.egress,
+      endpoint,
+      apiKey,
     };
   }
 

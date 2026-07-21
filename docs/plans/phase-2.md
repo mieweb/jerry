@@ -7,6 +7,7 @@ Phase 2 extends Jerry from a working local MVP to a production-ready system with
 ## Deferred Items Consolidated
 
 From **phase-1.md**:
+
 - `read_file` / `list_watched` tools (bucket/collector metadata)
 - `ozwell` and `byo-cloud` runtime backends
 - Daily/weekly SQL digest rollups + scheduled digests
@@ -15,6 +16,7 @@ From **phase-1.md**:
 - DuckDB analytics
 
 From **plan.md §13**:
+
 - Ollama embeddings (footnote) / CloudAI backend
 - Integrations: Google Drive, YouTube, Time Huddle
 - Webhook event source
@@ -46,6 +48,7 @@ flowchart TD
 **Branch naming:** `phase2/<slice-name>` — each slice gets its own feature branch
 
 **PR workflow:**
+
 1. Create branch from `development` (or dependency branch if needed)
 2. Implement slice tasks
 3. Run tests and verify acceptance criteria
@@ -54,31 +57,38 @@ flowchart TD
 6. Tag reviewer and wait for approval before merging
 
 **PR template for each slice:**
+
 ```markdown
 ## Phase 2 Slice [N]: [Slice Name]
 
 ### Summary
+
 [High-level description of what this slice achieves]
 
 ### Changes
+
 - [Key file/feature 1]
 - [Key file/feature 2]
 - ...
 
 ### Acceptance Criteria
+
 - [ ] [Acceptance criterion 1]
 - [ ] [Acceptance criterion 2]
 
 ### Dependencies
+
 - Depends on: [prior slice PRs or "None"]
 - Blocks: [future slice PRs]
 
 ### Testing
+
 - Unit tests: [summary]
 - Integration tests: [summary]
 - Manual verification: [steps taken]
 
 ### Notes
+
 [Any risks, deviations from plan, or follow-up needed]
 ```
 
@@ -99,12 +109,14 @@ flowchart TD
 **Why first:** Unblocks footnote search acceptance scenario; required for MCP consume.
 
 **Files:**
+
 - `packages/tools/src/runtime/file-tools.ts` (new)
 - `packages/tools/src/runtime/index-document.ts` (new)
 - `packages/tools/src/runtime/search-memory.ts` (fix placeholder)
 - `packages/collector/src/ingest.ts` (new: collector → footnote pipeline)
 
 **Tasks:**
+
 - Wire `BUCKET` binding for file operations
 - Implement `read_file` tool — read from bucket by path
 - Implement `list_watched` tool — list collector-tracked files with metadata
@@ -114,9 +126,11 @@ flowchart TD
 - Unit tests with mock bucket/embeddings; integration test with real Ollama (opt-in)
 
 **Acceptance:**
+
 - Drop screenshot in watched folder → collector pushes → `index_document` indexes → `jerry find that diagram` returns it
 
 **PR checklist:**
+
 - [x] `read_file` and `list_watched` tools implemented and tested
 - [x] `index_document` tool working with real embeddings
 - [x] `search_memory` uses Ollama embeddings (no random vectors)
@@ -125,6 +139,7 @@ flowchart TD
 - [ ] Acceptance scenario verified manually (after hotfix deploy)
 
 **Notes / deviations:**
+
 - Final merge uses **direct Ollama API** for embeddings (`nomic-embed-text`), not footnote embedder — reverted for CI hermeticity in `64d1481`
 - Footnote hybrid search deferred to **Slice 2** via MCP consume
 - Worker HTTP routes (`/v1/files`, `/v1/index`) landed in hotfix PR (not in original #4)
@@ -146,6 +161,7 @@ flowchart TD
 **Why:** Enables richer search (FTS, grep, related docs) without reimplementing in Jerry; foundation for future MCP integrations.
 
 **Files:**
+
 - `packages/tools/src/mcp/client.ts` (new)
 - `packages/tools/src/mcp/footnote-adapter.ts` (new)
 - `packages/jerry-app/src/mcp-config.ts` (new)
@@ -153,6 +169,7 @@ flowchart TD
 - `vendor/cloud` — stay pinned to `ecb8aa7` (same as `development` / [mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1)); do not pin unpushed local commits
 
 **Tasks:**
+
 - Add MCP client dependency
 - Create `McpClient` wrapper for stdio transport (footnote runs as `docidx mcp`)
 - Map footnote MCP tools to Jerry `ToolSet` shape
@@ -163,9 +180,11 @@ flowchart TD
 - Worker/CLI startup wiring: `create-tools.ts` + `prepareMcpForRequest` / queue preload
 
 **Acceptance:**
+
 - `jerry search my notes about kubernetes` → invokes footnote `search_hybrid` via MCP → returns results
 
 **PR checklist:**
+
 - [x] `@modelcontextprotocol/sdk` added as dependency
 - [x] `McpClient` wrapper implemented with stdio transport
 - [x] Footnote MCP tools mapped to Jerry `ToolSet`
@@ -180,6 +199,7 @@ flowchart TD
 - [x] Acceptance scenario verified manually (2026-07-13)
 
 **Notes / deviations:**
+
 - Worker wires MCP via `packages/jerry-app/src/create-tools.ts`: `ensureMcpTools` before `/messages` + `/enqueue` and queue turns; `createJerryToolsWithMcp` merges tools (drops `search_memory` when `search_hybrid` loads)
 - CLI path: local `jerry` / `pnpm jerry:ask` hits the same worker; helper `scripts/jerry-footnote.sh` sets `FOOTNOTE_DB` and starts the worker
 - Footnote hybrid search uses footnote's `.footnote` index (separate from Jerry's Slice 1 vector store)
@@ -201,6 +221,7 @@ flowchart TD
 **Goal:** Expose Jerry tools as an MCP server for external consumption (Cursor, Claude Desktop, other agents).
 
 **Files:**
+
 - `packages/tools/src/mcp/server.ts` (new: `createJerryMcpServer` + `handleJerryMcpHttp`)
 - `packages/cli/src/mcp-server.ts` (new: stdio proxy to worker `/v1/mcp`)
 - `packages/cli/bin/jerry-mcp.js` (new: stdio entry)
@@ -210,6 +231,7 @@ flowchart TD
 - `docs/mcp-server.md` (new: setup docs)
 
 **Tasks:**
+
 - Implement Jerry MCP server using `@modelcontextprotocol/sdk` `McpServer` class
 - Expose tool subset: `summarize_activity`, `search_memory`, `schedule_followup`
 - CLI mode: `jerry mcp` (or `jerry-mcp` binary) starts stdio server
@@ -218,9 +240,11 @@ flowchart TD
 - Test: MCP client → Jerry server → tool execution
 
 **Acceptance:**
+
 - Configure Jerry as MCP server in Cursor; invoke `summarize_activity` from Cursor agent
 
 **PR checklist:**
+
 - [x] Jerry MCP server implemented with `@modelcontextprotocol/sdk`
 - [x] Tools exposed: `summarize_activity`, `search_memory`, `schedule_followup`
 - [x] `jerry mcp` CLI command starts stdio server
@@ -230,6 +254,7 @@ flowchart TD
 - [x] Acceptance scenario verified manually (stdio proxy → worker → `summarize_activity` returned live activity, 2026-07-13)
 
 **Notes / deviations:**
+
 - **Single MCP engine in the worker.** The CLI stays a thin client (consistent with the rest of Jerry): `jerry mcp` is a stdio↔HTTP **proxy** that forwards tool calls to the worker's `/v1/mcp`, which owns `DB`/`VECTORS`. A self-contained CLI server would read a different (empty) local DB than the collector/worker, so proxying is more correct. The worker must be running (`JERRY_URL`, default `http://127.0.0.1:8787`).
 - **Shared factory** `createJerryMcpServer(ctx)` in `@mieweb/jerry-tools/mcp` builds the `McpServer`; `handleJerryMcpHttp(request, ctx)` wraps it with the Web Standard Streamable HTTP transport so the SDK dependency stays in `jerry-tools` (as in Slice 2) and jerry-app imports no SDK directly.
 - **HTTP transport is stateless** (`sessionIdGenerator: undefined`, `enableJsonResponse: true`) — a fresh server/transport per request, matching the Cloudflare Workers model. Not long-lived SSE.
@@ -238,6 +263,8 @@ flowchart TD
 ---
 
 ## Slice 4: Runtime Backends
+
+**Status:** Implemented on `phase2/runtime-backends` (branched from `development` after PR #7 merge).
 
 **Branch:** `phase2/runtime-backends`
 
@@ -248,30 +275,49 @@ flowchart TD
 **Goal:** Complete the three-way runtime split: `local`, `byo-cloud`, `ozwell`.
 
 **Files:**
+
 - `packages/agent-runtime/src/backends/byo-cloud.ts` (new)
 - `packages/agent-runtime/src/backends/ozwell.ts` (new)
+- `packages/agent-runtime/src/backends/filter-tools.ts` (new: shared filterTools extract)
 - `packages/agent-runtime/src/resolve-runtime.ts` (update)
+- `packages/agent-runtime/src/profile.ts` (update: add helpers)
+- `packages/agent-runtime/src/types.ts` (update: add apiKey field)
+- `packages/cli/src/profile.ts` (update: env var wiring)
 
 **Tasks:**
+
 - Implement `byo-cloud` backend — same AI SDK loop, user-provided OpenAI-compatible endpoint
-- Implement `ozwell` backend — delegate to Ozwell agent system via `@mieweb/ozwellai` client
-- Initialize `vendor/ozwellai-api` submodule; generate client if needed
+- Implement `ozwell` backend — AI SDK over Ozwell Manager endpoint with local Ollama fallback
+- ~~Initialize `vendor/ozwellai-api` submodule~~ (already done; consume existing `ozwellai` package)
 - Update `resolveRuntime()` to handle all three profiles
-- Test: mock model endpoint for byo-cloud; mock Ozwell API for ozwell
+- Test: mock tests for byo-cloud and ozwell; opt-in live Ozwell test (`JERRY_OZWELL_TEST=1`)
 - Document profile configuration for each runtime
 
 **Acceptance:**
-- `jerry --profile byo-cloud` → model calls go to user's configured endpoint
-- `jerry --profile ozwell` → conversation delegated to Ozwell system
+
+- `JERRY_RUNTIME=byo-cloud JERRY_MODEL=https://api.openai.com/v1#gpt-4o OPENAI_API_KEY=... jerry "hello"` → model calls go to user's configured endpoint
+- `JERRY_RUNTIME=ozwell OZWELL_API_KEY=ozw_... jerry "hello"` → conversation via Ozwell Manager
+- Ozwell unavailable with Ollama running → fallback local with warning message
 
 **PR checklist:**
-- [ ] `byo-cloud` backend implemented with AI SDK
-- [ ] `ozwell` backend implemented with Ozwell client
-- [ ] `vendor/ozwellai-api` submodule initialized
-- [ ] `resolveRuntime()` handles all three profiles
-- [ ] Mock tests for both backends pass
-- [ ] Profile configuration documented
+
+- [x] `byo-cloud` backend implemented with AI SDK
+- [x] `ozwell` backend implemented with AI SDK + `ozwellai` for probe; Ollama fallback
+- [x] `vendor/ozwellai-api` submodule already initialized (consume-only)
+- [x] `resolveRuntime()` handles all three profiles
+- [x] Mock tests for both backends pass (79 tests total)
+- [x] Profile configuration documented (README.md)
 - [ ] Acceptance scenarios verified manually
+
+**Notes / deviations:**
+
+- **Default Ozwell endpoint:** `https://ozwellapi.os.mieweb.org` (Manager host). Not `tryozwell` (demo UI) or `api.ozwell.ai` (separate DB).
+- **Egress normalization:** When runtime is `byo-cloud` or `ozwell` and egress was left at default `deny`, it is automatically coerced to `allow-model` so model calls are legal.
+- **Ozwell fallback:** If Ozwell is unreachable (network/auth/5xx), the runtime emits a warning and falls back to local Ollama. Both backends must fail before an error is returned.
+- **API key resolution:** `profile.apiKey` → `OZWELL_API_KEY` / `OZWELL_AGENT_KEY` (ozwell; **parent `ozw_` preferred**) or `JERRY_API_KEY` / `OPENAI_API_KEY` (byo-cloud). Agent keys (`agnt_key-`) inject Ozwell-side persona/tools and break Jerry's local tool loop — prefer unset `OZWELL_AGENT_KEY` when using a parent key.
+- **Ozwell probe:** Uses a tiny chat completion (not `/v1/models`, which is unauthenticated on Manager). Auth failures in the AI SDK stream also trigger Ollama fallback.
+- **Shared filterTools:** Extracted to `filter-tools.ts` and re-exported from `local.ts` for backwards compatibility.
+- **No vendor changes:** Consumed existing `ozwellai: workspace:*` package from `vendor/ozwellai-api/clients/typescript`.
 
 ---
 
@@ -286,12 +332,14 @@ flowchart TD
 **Goal:** Add Google Drive, YouTube, and Time Huddle as tools with egress approval flow.
 
 **Files:**
+
 - `packages/tools/src/integrations/drive.ts` (new)
 - `packages/tools/src/integrations/youtube.ts` (new)
 - `packages/tools/src/integrations/timehuddle.ts` (new)
 - `packages/tools/src/integrations/oauth.ts` (new: shared OAuth helper)
 
 **Tasks:**
+
 - **Google Drive:** `read_drive` (list/fetch files), OAuth2 flow
 - **YouTube:** `post_youtube` (upload video), `fetch_youtube` (get video metadata)
 - **Time Huddle:** `read_timehuddle` (get meetings), `post_timehuddle` (create note)
@@ -301,10 +349,12 @@ flowchart TD
 - Test: mock API responses; manual integration test with real accounts
 
 **Acceptance:**
+
 - `jerry upload this to youtube` → approval prompt → user confirms → video uploaded
 - `jerry what files did I share today` → Drive API queried → results returned
 
 **PR checklist:**
+
 - [ ] Google Drive tools (`read_drive`) implemented with OAuth2
 - [ ] YouTube tools (`post_youtube`, `fetch_youtube`) implemented
 - [ ] Time Huddle tools (`read_timehuddle`, `post_timehuddle`) implemented
@@ -327,12 +377,14 @@ flowchart TD
 **Goal:** Add webhook event source and scheduled digest generation.
 
 **Files:**
+
 - `packages/jerry-app/src/webhook-handler.ts` (new)
 - `packages/jerry-app/src/scheduled-handler.ts` (update)
 - `packages/tools/src/runtime/rollup.ts` (new)
 - `packages/jerry-app/migrations/0002_rollups.sql` (new)
 
 **Tasks:**
+
 - **Webhooks:** Parse incoming webhook payloads, normalize to `activity_events`, enqueue turn
 - **SQL rollups:** `daily_summary`, `weekly_summary` tables; `GROUP BY` over events/activity
 - **Scheduled digests:** Implement `handleScheduled()` — cron-triggered digest generation
@@ -340,10 +392,12 @@ flowchart TD
 - Test: mock cron trigger; verify rollup output
 
 **Acceptance:**
+
 - GitHub webhook → Jerry receives push event → logs as activity
 - Every morning at 8am → Jerry generates daily digest without external trigger
 
 **PR checklist:**
+
 - [ ] Webhook handler parses common webhook formats
 - [ ] Webhooks normalized to `activity_events`
 - [ ] SQL rollup functions implemented
@@ -366,12 +420,14 @@ flowchart TD
 **Goal:** Deploy to production targets and land upstream PRs.
 
 **Files:**
+
 - `wrangler.jsonc` (production config)
 - `deploy/mieweb-os/` (new: docker-compose, env templates)
 - `vendor/cloud` submodule (upstream PR land)
 - `.github/workflows/deploy.yml` (new)
 
 **Tasks:**
+
 - **Upstream PR:** Coordinate merge of [mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1); update submodule pin
 - **Cloudflare deploy:** Production `wrangler.jsonc`; D1, Vectorize, DO bindings
 - **mieweb/os deploy:** Docker Compose with libSQL, MinIO, Valkey; env vars for profile
@@ -380,10 +436,12 @@ flowchart TD
 - Smoke test on each target
 
 **Acceptance:**
+
 - `jerry summarize my last 2 hours` works on Cloudflare production
 - Same on mieweb/os self-hosted instance
 
 **PR checklist:**
+
 - [ ] Upstream `@mieweb/cloud-agent` PR coordinated/merged
 - [ ] Cloudflare production config complete
 - [ ] mieweb/os docker-compose working
@@ -408,15 +466,18 @@ flowchart TD
 **Goal:** Nice-to-have features that can follow the core Phase 2.
 
 **Tasks:**
+
 - **DuckDB local analytics:** Optional local-only analytical queries (not in portable core)
 - **Mobile thin client:** React Native or PWA stub for mobile Jerry access
 - **CloudAI embeddings:** Alternative to Ollama embeddings via Cloudflare AI binding
 
 **Acceptance:**
+
 - `jerry --analytics` runs DuckDB query locally
 - Mobile app can send messages and view thread
 
 **PR checklist:**
+
 - [ ] DuckDB local analytics optional flag implemented
 - [ ] Mobile client stub functional (or documented as future work)
 - [ ] CloudAI embeddings alternative implemented (or documented)
@@ -429,28 +490,28 @@ flowchart TD
 
 ## Risk Mitigations
 
-| Risk | Mitigation |
-| --- | --- |
-| MCP SDK version drift | Pin `@modelcontextprotocol/sdk` version; test on upgrade |
-| OAuth token storage security | Encrypt tokens; never log; document security model |
-| Upstream PR delay | Keep working on branch; merge when ready; don't block other slices |
-| Integration API rate limits | Implement backoff; cache responses where appropriate |
-| Scheduled handler reliability | Test alarm firing on all targets; alert on missed digests |
+| Risk                          | Mitigation                                                         |
+| ----------------------------- | ------------------------------------------------------------------ |
+| MCP SDK version drift         | Pin `@modelcontextprotocol/sdk` version; test on upgrade           |
+| OAuth token storage security  | Encrypt tokens; never log; document security model                 |
+| Upstream PR delay             | Keep working on branch; merge when ready; don't block other slices |
+| Integration API rate limits   | Implement backoff; cache responses where appropriate               |
+| Scheduled handler reliability | Test alarm firing on all targets; alert on missed digests          |
 
 ---
 
 ## Slice Summary
 
-| Slice | Branch | Dependencies | Est. Files | Key Deliverable |
-| --- | --- | --- | --- | --- |
-| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None | 5 | Complete deferred tools; real vector search |
-| 2. MCP Consume | `phase2/mcp-consume` | Slice 1 | 4 | Footnote MCP integration |
-| 3. MCP Expose | `phase2/mcp-expose` | Slice 1 | 3 | Jerry as MCP server |
-| 4. Runtime Backends | `phase2/runtime-backends` | None | 3 | byo-cloud + ozwell working |
-| 5. Integrations | `phase2/external-integrations` | Slice 2 | 5 | Drive, YouTube, Time Huddle |
-| 6. Webhooks and Digests | `phase2/webhooks-digests` | None | 4 | Scheduled digests working |
-| 7. Production Deploy | `phase2/production-deploy` | Slices 3-6 | 4 | Live on Cloudflare + mieweb/os |
-| 8. Optional Enhancements | `phase2/optional-enhancements` | Slice 7 | 3 | DuckDB, mobile stub |
+| Slice                        | Branch                         | Dependencies | Est. Files | Key Deliverable                             |
+| ---------------------------- | ------------------------------ | ------------ | ---------- | ------------------------------------------- |
+| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None         | 5          | Complete deferred tools; real vector search |
+| 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                    |
+| 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                         |
+| 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                  |
+| 5. Integrations              | `phase2/external-integrations` | Slice 2      | 5          | Drive, YouTube, Time Huddle                 |
+| 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                   |
+| 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os              |
+| 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                         |
 
 ---
 

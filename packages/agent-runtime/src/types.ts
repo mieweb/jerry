@@ -52,7 +52,9 @@ export interface PrivacyProfile {
   egress: EgressPolicy;
   /** Per-tool egress dispositions */
   tools?: Record<string, ToolEgress>;
-  /** Ozwell endpoint (required for ozwell runtime) */
+  /** API key for byo-cloud/ozwell endpoints */
+  apiKey?: string;
+  /** Ozwell endpoint (required for ozwell runtime, defaults to Manager host) */
   endpoint?: string;
   /** Ozwell agent ID (optional for ozwell runtime) */
   agentId?: string;
