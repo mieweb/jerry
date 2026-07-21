@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { createOzwellRuntime } from "./ozwell.ts";
-import type { PrivacyProfile, AgentRuntime, RuntimeEvent, TurnInput } from "../types.ts";
+import type { PrivacyProfile, AgentRuntime, RuntimeEvent } from "../types.ts";
 import { DEFAULT_OZWELL_ENDPOINT } from "../profile.ts";
 
 describe("createOzwellRuntime", () => {
@@ -148,7 +148,7 @@ describe("createOzwellRuntime", () => {
       let fallbackCalled = false;
       const mockLocalRuntime: AgentRuntime = {
         profile: { ...profile, runtime: "local" },
-        async *runTurn(_input: TurnInput): AsyncIterable<RuntimeEvent> {
+        async *runTurn(): AsyncIterable<RuntimeEvent> {
           fallbackCalled = true;
           yield { type: "start" };
           yield { type: "text-delta", text: "Hello from local" };
@@ -190,7 +190,7 @@ describe("createOzwellRuntime", () => {
       let fallbackCalled = false;
       const mockLocalRuntime: AgentRuntime = {
         profile: { ...profile, runtime: "local" },
-        async *runTurn(_input: TurnInput): AsyncIterable<RuntimeEvent> {
+        async *runTurn(): AsyncIterable<RuntimeEvent> {
           fallbackCalled = true;
           yield { type: "start" };
           yield { type: "text-delta", text: "local fallback reply" };
