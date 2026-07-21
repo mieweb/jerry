@@ -124,6 +124,19 @@ describe("createOzwellRuntime", () => {
   });
 
   describe("fallback behavior", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      delete process.env.OZWELL_API_KEY;
+      delete process.env.OZWELL_AGENT_KEY;
+      delete process.env.JERRY_API_KEY;
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
     it("creates runtime without API key (will fallback on first turn)", async () => {
       const profile: PrivacyProfile = {
         runtime: "ozwell",
