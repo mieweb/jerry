@@ -36,7 +36,7 @@ export function createByoCloudRuntime(profile: PrivacyProfile): AgentRuntime {
   const provider = createOpenAICompatible({
     name: "byo-cloud",
     baseURL: parsed.baseURL,
-    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+    apiKey: apiKey ?? undefined,
   });
 
   const model = provider(parsed.modelId);

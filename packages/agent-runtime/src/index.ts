@@ -16,9 +16,11 @@ export type {
 export {
   DEFAULT_PRIVACY_PROFILE,
   DEFAULT_OZWELL_ENDPOINT,
+  DEFAULT_OZWELL_MODEL,
   parseModelRef,
   mergeProfile,
   resolveApiKey,
+  resolveOzwellModelId,
   normalizeProfile,
 } from "./profile.ts";
 

@@ -94,7 +94,7 @@ describe("createOzwellRuntime", () => {
         apiKey: undefined,
       };
 
-      const runtime = createOzwellRuntime(profile);
+      const runtime = createOzwellRuntime(profile, { skipProbe: true });
       assert.ok(runtime);
     });
 
@@ -105,11 +105,11 @@ describe("createOzwellRuntime", () => {
         apiKey: undefined,
       };
 
-      const runtime = createOzwellRuntime(profile);
+      const runtime = createOzwellRuntime(profile, { skipProbe: true });
       assert.ok(runtime);
     });
 
-    it("prefers OZWELL_AGENT_KEY over OZWELL_API_KEY", () => {
+    it("prefers OZWELL_API_KEY over OZWELL_AGENT_KEY", () => {
       process.env.OZWELL_AGENT_KEY = "agnt_key-test";
       process.env.OZWELL_API_KEY = "ozw_parent_key";
 
@@ -118,7 +118,7 @@ describe("createOzwellRuntime", () => {
         apiKey: undefined,
       };
 
-      const runtime = createOzwellRuntime(profile);
+      const runtime = createOzwellRuntime(profile, { skipProbe: true });
       assert.ok(runtime);
     });
   });
@@ -144,6 +144,7 @@ describe("createOzwellRuntime", () => {
       };
 
       const runtime = createOzwellRuntime(profile, {
+        skipProbe: true,
         createLocalFallback: () => mockLocalRuntime,
       });
 
@@ -163,17 +164,60 @@ describe("createOzwellRuntime", () => {
       // Fallback should have been called
       assert.ok(fallbackCalled, "Local fallback should be called");
     });
+
+    it("falls back when probe fails (bad key)", async () => {
+      const profile: PrivacyProfile = {
+        runtime: "ozwell",
+        model: "gpt-4.1-mini",
+        egress: "deny",
+        endpoint: "https://ozwellapi.os.mieweb.org",
+        apiKey: "ozw_bad_key_for_probe",
+      };
+
+      let fallbackCalled = false;
+      const mockLocalRuntime: AgentRuntime = {
+        profile: { ...profile, runtime: "local" },
+        async *runTurn(_input: TurnInput): AsyncIterable<RuntimeEvent> {
+          fallbackCalled = true;
+          yield { type: "start" };
+          yield { type: "text-delta", text: "local fallback reply" };
+          yield { type: "finish", finishReason: "stop" };
+        },
+      };
+
+      const runtime = createOzwellRuntime(profile, {
+        // Do NOT skip probe — we want probe failure path
+        createLocalFallback: () => mockLocalRuntime,
+      });
+
+      const events: RuntimeEvent[] = [];
+      for await (const event of runtime.runTurn({
+        messages: [{ role: "user", content: "Hello" }],
+      })) {
+        events.push(event);
+      }
+
+      const warning = events.find(
+        (e) => e.type === "text-delta" && e.text.includes("Falling back to local Ollama")
+      );
+      assert.ok(warning, "Should emit Ozwell unavailable notice");
+      assert.ok(fallbackCalled, "Local fallback should run after probe failure");
+      const localText = events.find(
+        (e) => e.type === "text-delta" && e.text.includes("local fallback reply")
+      );
+      assert.ok(localText, "Should stream local fallback content");
+    });
   });
 
   describe("runtime interface", () => {
     it("exposes profile", () => {
-      const runtime = createOzwellRuntime(baseProfile);
+      const runtime = createOzwellRuntime(baseProfile, { skipProbe: true });
       assert.ok(runtime.profile);
       assert.equal(runtime.profile.runtime, "ozwell");
     });
 
     it("has runTurn method", () => {
-      const runtime = createOzwellRuntime(baseProfile);
+      const runtime = createOzwellRuntime(baseProfile, { skipProbe: true });
       assert.equal(typeof runtime.runTurn, "function");
     });
   });

@@ -95,15 +95,16 @@ export function loadConfig(): JerryConfig {
       config.profile?.endpoint;
 
     // Resolve API key based on runtime
-    // For ozwell: OZWELL_AGENT_KEY > OZWELL_API_KEY > JERRY_API_KEY
+    // For ozwell: OZWELL_API_KEY > OZWELL_AGENT_KEY > JERRY_API_KEY
+    //   (parent ozw_ preferred — Jerry owns tools; agnt_key injects Ozwell persona)
     // For byo-cloud: JERRY_API_KEY > OPENAI_API_KEY
     const runtime = process.env.JERRY_RUNTIME ?? config.profile?.runtime;
     let apiKey = config.profile?.apiKey;
 
     if (runtime === "ozwell") {
       apiKey =
-        process.env.OZWELL_AGENT_KEY ??
         process.env.OZWELL_API_KEY ??
+        process.env.OZWELL_AGENT_KEY ??
         process.env.JERRY_API_KEY ??
         apiKey;
     } else if (runtime === "byo-cloud") {
