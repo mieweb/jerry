@@ -14,8 +14,8 @@ export default defineConfig({
     "@mieweb/cloud-types",
   ],
   external: [
-    "ink",
-    "ink-spinner",
+    "@opentui/core",
+    "@opentui/react",
     "react",
     "ai",
     "@ai-sdk/openai-compatible",

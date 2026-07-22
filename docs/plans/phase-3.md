@@ -432,11 +432,11 @@ export default defineConfig({
 
 **PR checklist:**
 
-- [ ] Package initialized with correct metadata
-- [ ] tsup config bundles @mieweb/\* packages
-- [ ] Build produces self-contained output
-- [ ] Local install via npm link works
-- [ ] Typecheck passes
+- [x] Package initialized with correct metadata
+- [x] tsup config bundles @mieweb/\* packages
+- [x] Build produces self-contained output
+- [x] Local install via npm link works
+- [x] Typecheck passes
 
 ---
 
@@ -503,11 +503,11 @@ export class JerryBridge {
 
 **PR checklist:**
 
-- [ ] JerryBridge class implemented
-- [ ] switchRuntime handles all three backends
-- [ ] runTurn yields RuntimeEvent stream
-- [ ] Active turn protection implemented
-- [ ] Unit tests pass
+- [x] JerryBridge class implemented
+- [x] switchRuntime handles all three backends
+- [x] runTurn yields RuntimeEvent stream
+- [x] Active turn protection implemented
+- [x] Unit tests pass
 
 ---
 
@@ -571,13 +571,13 @@ export interface HealthReport {
 
 **PR checklist:**
 
-- [ ] HealthCheck interface defined
-- [ ] Ollama health check implemented
-- [ ] ActivityWatch health check implemented
-- [ ] Footnote health check implemented
-- [ ] MCP tools health check implemented
-- [ ] Parallel runner with timeout implemented
-- [ ] Unit tests with mocked responses pass
+- [x] HealthCheck interface defined
+- [x] Ollama health check implemented
+- [x] ActivityWatch health check implemented
+- [x] Footnote health check implemented
+- [x] MCP tools health check implemented
+- [x] Parallel runner with timeout implemented
+- [x] Unit tests with mocked responses pass
 
 ---
 
@@ -650,14 +650,14 @@ export interface CommandContext {
 
 **PR checklist:**
 
-- [ ] REPL loop implemented with readline
-- [ ] Command parser recognizes slash commands
-- [ ] All five built-in commands functional
-- [ ] Non-command input dispatched to bridge
-- [ ] Response streaming works
-- [ ] Config loading from file and env vars
-- [ ] Graceful shutdown on Ctrl+C
-- [ ] Unit tests for command parsing
+- [x] REPL loop implemented with readline
+- [x] Command parser recognizes slash commands
+- [x] All five built-in commands functional
+- [x] Non-command input dispatched to bridge
+- [x] Response streaming works
+- [x] Config loading from file and env vars
+- [x] Graceful shutdown on Ctrl+C
+- [x] Unit tests for command parsing
 
 ---
 
@@ -812,21 +812,21 @@ for await (const event of this.bridge.runTurn({
 
 **PR checklist:**
 
-- [ ] LocalToolContext interface defined
-- [ ] summarize_activity calls AW HTTP directly
-- [ ] Existing AW aggregation logic reused
-- [ ] Stub tools for search_memory, schedule_followup
-- [ ] createLocalTools() exported
-- [ ] REPL passes tools to runTurn()
-- [ ] Unit tests with mocked fetch
-- [ ] Works when ActivityWatch is running
-- [ ] Graceful error when ActivityWatch is down
+- [x] LocalToolContext interface defined
+- [x] summarize_activity calls AW HTTP directly
+- [x] Existing AW aggregation logic reused
+- [x] Stub tools for search_memory, schedule_followup
+- [x] createLocalTools() exported
+- [x] REPL passes tools to runTurn()
+- [x] Unit tests with mocked fetch
+- [x] Works when ActivityWatch is running
+- [x] Graceful error when ActivityWatch is down
 
 ---
 
 ## Slice 5: Ink UI Framework
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Replace basic REPL with Ink-based React UI for rich terminal experience, following [CLI UI design guidelines](https://github.com/davila7/claude-code-templates/blob/main/cli-tool/components/agents/development-team/cli-ui-designer.md).
 
@@ -910,12 +910,12 @@ for await (const event of this.bridge.runTurn({
 
 **Visual Consistency Checklist:**
 
-- [ ] All text uses monospace font (Ink default)
-- [ ] Colors follow theme CSS custom properties pattern
-- [ ] Spacing follows 1-unit baseline (Ink's padding units)
-- [ ] Border styles consistent (`single` for primary, `round` for secondary)
-- [ ] Prompt symbols use proper glyphs (`>`, `$`, `⎿`)
-- [ ] Status indicators use colored dots
+- [x] All text uses monospace font (Ink default)
+- [x] Colors follow theme CSS custom properties pattern
+- [x] Spacing follows 1-unit baseline (Ink's padding units)
+- [x] Border styles consistent (`single` for primary, `round` for secondary)
+- [x] Prompt symbols use proper glyphs (`>`, `$`, `⎿`)
+- [x] Status indicators use colored dots
 
 **Acceptance:**
 
@@ -929,17 +929,31 @@ for await (const event of this.bridge.runTurn({
 
 **PR checklist:**
 
-- [ ] Ink renderer set up with full-screen mode
-- [ ] Theme system implemented (colors, typography)
-- [ ] App layout structure with flexbox
-- [ ] Header component with status dot and runtime badge
-- [ ] InputPrompt with `>` symbol and cursor
-- [ ] ResponseArea with streaming display
-- [ ] StatusBar with connection indicators
-- [ ] TerminalBox reusable component
-- [ ] Terminal resize handled
-- [ ] Keyboard shortcuts working
-- [ ] All previous REPL functionality preserved
+- [x] Ink renderer set up with full-screen mode
+- [x] Theme system implemented (colors, typography)
+- [x] App layout structure with flexbox
+- [x] Header component with status dot and runtime badge
+- [x] InputPrompt with `>` symbol and cursor
+- [x] ResponseArea with streaming display
+- [x] StatusBar with connection indicators
+- [x] TerminalBox reusable component
+- [x] Terminal resize handled
+- [x] Keyboard shortcuts working
+- [x] All previous REPL functionality preserved
+
+### Post-Slice Migration: Ink → OpenTUI
+
+**Status:** Done
+
+The UI was migrated from Ink to [OpenTUI](https://opentui.com/) to enable proper fixed-viewport layout with a native scrollable transcript area. Key changes:
+
+- **Stack:** `@opentui/core` + `@opentui/react` (React reconciler) replacing `ink` + `ink-text-input`
+- **Runtime:** Bun required for interactive UI; Node.js supported via `--no-ui` readline fallback
+- **Layout:** Fixed header/input/status chrome with `scrollbox` for transcript (no more manual row slicing)
+- **Components:** UI now rendered inline in App.tsx using OpenTUI lowercase elements (`box`, `text`, `scrollbox`, `input`)
+- **Hooks:** `useBridge` and `useRepl` unchanged (standard React hooks work with OpenTUI reconciler)
+
+The `--no-ui` readline REPL remains fully functional under Node.js for environments without Bun.
 
 ---
 

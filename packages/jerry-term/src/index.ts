@@ -39,7 +39,22 @@ export async function run(args: string[]): Promise<void> {
   const config = loadTermConfig();
   const bridge = new JerryBridge(termConfigToProfile(config));
   const registry = createDefaultRegistry();
-  const repl = new Repl(bridge, config, registry);
 
-  await repl.start();
+  if (args.includes("--no-ui")) {
+    const repl = new Repl(bridge, config, registry);
+    await repl.start();
+  } else {
+    const { startUi } = await import("./ui/index.tsx");
+    await startUi({ bridge, config, registry });
+  }
+}
+
+const isMain = import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("/jerry-term/src/index.ts");
+
+if (isMain) {
+  run(process.argv.slice(2)).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
