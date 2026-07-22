@@ -219,12 +219,24 @@ flowchart TD
 
 **Base branch:** `development` (Phase 2 complete)
 
-**Branch naming:** `phase3/jerry-term` — single feature branch for the CLI
+**Branch naming:** Per-slice branches for independent review and merge:
+
+| Slice | Branch Name |
+|-------|-------------|
+| Slice 1 | `phase3/jerry-term` (scaffold) |
+| Slice 2 | `phase3/slice2-bridge` |
+| Slice 3 | `phase3/slice3-health` |
+| Slice 4 | `phase3/slice4-repl` |
+| Slice 5 | `phase3/slice5-ink-ui` |
+| Slice 6 | `phase3/slice6-observability` |
+| Slice 7 | `phase3/slice7-publish` |
+
+Each slice branch is created from `development` (or the previous merged slice) and merged via its own PR.
 
 **PR workflow:**
 
-1. Create branch from `development`
-2. Implement slices incrementally (commits per slice)
+1. Create slice branch from `development` (or previous merged slice)
+2. Implement the slice
 3. Run tests and verify acceptance criteria
 4. Open PR against `development` with descriptive summary
 5. **DO NOT merge without explicit review approval**
@@ -393,7 +405,7 @@ export default defineConfig({
 
 ## Slice 2: Bridge Layer
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Implement the JerryBridge abstraction that wraps agent-runtime for CLI consumption.
 
