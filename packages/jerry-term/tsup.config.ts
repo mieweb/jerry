@@ -21,5 +21,6 @@ export default defineConfig({
     "@ai-sdk/openai-compatible",
     "zod",
     "conf",
+    "@modelcontextprotocol/sdk",
   ],
 });
