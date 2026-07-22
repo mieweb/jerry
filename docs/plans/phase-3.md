@@ -207,8 +207,9 @@ flowchart TD
     S1[Slice 1: Project Scaffold] --> S2[Slice 2: Bridge Layer]
     S2 --> S3[Slice 3: Health Checks]
     S2 --> S4[Slice 4: Basic REPL]
-    S3 --> S5[Slice 5: Ink UI]
-    S4 --> S5
+    S3 --> S4_5[Slice 4.5: Local Tools]
+    S4 --> S4_5
+    S4_5 --> S5[Slice 5: Ink UI]
     S5 --> S6[Slice 6: Observability Panels]
     S6 --> S7[Slice 7: Polish and Publish]
 ```
@@ -219,49 +220,83 @@ flowchart TD
 
 **Base branch:** `development` (Phase 2 complete)
 
-**Branch naming:** Per-slice branches for independent review and merge:
+**Working branch:** `phase3/jerry-term` — **all Phase 3 slices land on this single branch**.
 
-| Slice | Branch Name |
-|-------|-------------|
-| Slice 1 | `phase3/jerry-term` (scaffold) |
-| Slice 2 | `phase3/slice2-bridge` |
-| Slice 3 | `phase3/slice3-health` |
-| Slice 4 | `phase3/slice4-repl` |
-| Slice 5 | `phase3/slice5-ink-ui` |
-| Slice 6 | `phase3/slice6-observability` |
-| Slice 7 | `phase3/slice7-publish` |
+We are **not** opening a PR per slice. Slice boundaries remain the implementation and commit cadence (clear commit messages, local acceptance checks), but review and merge happen once via a **major PR** after the planned slices are complete (through Slice 7 polish, or when the branch is otherwise ready to ship against `development`).
 
-Each slice branch is created from `development` (or the previous merged slice) and merged via its own PR.
+| Slice | Work lands on |
+|-------|----------------|
+| Slice 1–7 (incl. 4.5) | `phase3/jerry-term` |
 
-**PR workflow:**
+**Workflow:**
 
-1. Create slice branch from `development` (or previous merged slice)
-2. Implement the slice
-3. Run tests and verify acceptance criteria
-4. Open PR against `development` with descriptive summary
+1. Implement each slice on `phase3/jerry-term` (commit as you go; keep commits scoped to the slice)
+2. Run tests and verify that slice’s acceptance criteria locally
+3. Continue to the next slice on the same branch
+4. When Phase 3 work is complete, open **one major PR** against `development`
 5. **DO NOT merge without explicit review approval**
 6. Tag reviewer and wait for approval before merging
 
-**PR template:**
+**Per-slice PR checklists** in this doc are self-check lists for the implementer (and for the final PR description), not separate GitHub PRs.
+
+**npm publish ownership (important):**
+
+GitHub collaborator/maintainer on `mieweb/jerry` does **not** grant npm publish rights. `jerry-term` is an unscoped public package name; the **first** successful `npm publish` owns that name on the registry. Collaborators must **not** publish under a personal npm account (that would make them the package owner instead of MIEWEB).
+
+| Role | Responsibility |
+|------|----------------|
+| Collaborator / PR author | Prove installability locally; open PR with dry-run + pack demo; **do not** `npm publish` to the public registry |
+| Repo / org owner | Publish under the MIEWEB npm account (or CI with an org Automation/Granular token); optionally `npm owner add <collaborator>` afterward |
+
+**Local install demo for PRs (no registry):**
+
+Use this in PR description and/or a short screen recording so reviewers can see `npm install` behavior before the package is live:
+
+```bash
+pnpm --filter jerry-term build
+cd packages/jerry-term
+npm publish --dry-run          # proves tarball contents; does not upload
+npm pack                       # → jerry-term-0.1.0.tgz
+npm i -g ./jerry-term-0.1.0.tgz
+jerry-term --version           # or --help / open REPL
+```
+
+Optional: `npm link` inside `packages/jerry-term` for a global binary without a tarball.
+
+**Owner publish (after PR approval / Slice 7):**
+
+```bash
+cd packages/jerry-term
+npm login                      # MIEWEB / org npm user
+npm publish                    # or trigger publish-jerry-term.yml with NPM_TOKEN
+# optional: npm owner add <collaborator-npm-user> jerry-term
+```
+
+After publish, real users get: `npm i -g jerry-term`.
+
+**Major PR template** (single PR after all slices on `phase3/jerry-term`):
 
 ```markdown
 ## Phase 3: Jerry Terminal CLI
 
 ### Summary
 
-Interactive terminal CLI for Jerry with runtime switching, health checks, and real-time observability.
+Interactive terminal CLI for Jerry with runtime switching, health checks, and real-time observability. Delivers Phase 3 slices on `phase3/jerry-term` as one PR against `development`.
 
 ### Changes
 
 - `packages/jerry-term/` — new package with bundled distribution
+- Slice work: scaffold, bridge, health, REPL, local tools, Ink UI, observability, polish
 
 ### Acceptance Criteria
 
-- [ ] `npm i -g jerry-term` installs globally
+- [ ] Local global install works via `npm pack` + `npm i -g ./jerry-term-*.tgz` (or `npm link`)
+- [ ] `npm publish --dry-run` succeeds (no registry upload from collaborator)
 - [ ] `jerry-term` starts interactive REPL
 - [ ] `/runtime local|ozwell|byo-cloud` switches backend
 - [ ] `/health` shows system diagnostics
 - [ ] Real-time tool execution visibility
+- [ ] **Owner follow-up:** publish to npm under MIEWEB account / CI token after merge
 
 ### Dependencies
 
@@ -272,11 +307,13 @@ Interactive terminal CLI for Jerry with runtime switching, health checks, and re
 
 - Unit tests: Bridge, health checks, command parsing
 - Integration tests: Full REPL flow (opt-in)
-- Manual verification: npm publish dry-run
+- Manual verification: `npm publish --dry-run` + local `npm pack` / `npm i -g ./jerry-term-*.tgz`
+- Demo (optional): short video of local install + CLI smoke test for owner review
 
 ### Notes
 
 [Any risks, deviations from plan, or follow-up needed]
+[If Slice 7: ask owner to publish; do not publish from personal npm account]
 ```
 
 ---
@@ -476,7 +513,7 @@ export class JerryBridge {
 
 ## Slice 3: Health Checks
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Implement health check adapters for all system dependencies.
 
@@ -546,7 +583,7 @@ export interface HealthReport {
 
 ## Slice 4: Basic REPL
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Implement the core REPL loop with command parsing (no fancy UI yet).
 
@@ -621,6 +658,169 @@ export interface CommandContext {
 - [ ] Config loading from file and env vars
 - [ ] Graceful shutdown on Ctrl+C
 - [ ] Unit tests for command parsing
+
+---
+
+## Slice 4.5: Local Tools
+
+**Status:** Done
+
+**Goal:** Enable Jerry tools in jerry-term by creating local tool adapters that work without Cloudflare Worker bindings.
+
+**Background:**
+
+Jerry's tools (`summarize_activity`, `search_memory`, etc.) require a `ToolContext` with Cloudflare bindings (`db`, `vectors`, `bucket`). The jerry-term CLI runs locally without these bindings, so tools don't work out of the box.
+
+This slice creates a `LocalToolContext` that:
+1. Calls ActivityWatch HTTP API directly (skip collector/D1 middleman)
+2. Reuses existing AW aggregation logic from `packages/tools/src/aw/`
+3. Stubs non-essential tools for local use
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         jerry-term REPL                         │
+├─────────────────────────────────────────────────────────────────┤
+│  JerryBridge.runTurn({ messages, tools })                       │
+│                              │                                  │
+│                              ▼                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ LocalToolContext                                            ││
+│  │  - awUrl: "http://127.0.0.1:5600"                          ││
+│  │  - fetchFn: fetch (injectable for tests)                   ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                              │                                  │
+│                              ▼                                  │
+│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐│
+│  │summarize_activity│ │  search_memory   │ │schedule_followup ││
+│  │ (AW HTTP direct) │ │    (stubbed)     │ │    (stubbed)     ││
+│  └──────────────────┘ └──────────────────┘ └──────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │     ActivityWatch HTTP API    │
+              │   http://127.0.0.1:5600/api   │
+              └───────────────────────────────┘
+```
+
+**Files:**
+
+- `packages/jerry-term/src/tools/index.ts`
+- `packages/jerry-term/src/tools/types.ts`
+- `packages/jerry-term/src/tools/local-context.ts`
+- `packages/jerry-term/src/tools/summarize-activity.ts`
+- `packages/jerry-term/src/tools/stubs.ts`
+- `packages/jerry-term/src/tools/*.test.ts`
+
+**Tasks:**
+
+- Define `LocalToolContext` interface (awUrl, fetchFn)
+- Implement local `summarize_activity`:
+  - Fetch buckets from `GET /api/0/buckets`
+  - Fetch events from `GET /api/0/buckets/{id}/events?start=...&end=...`
+  - Reuse `buildActivitySummary()` from `@mieweb/jerry-tools/aw`
+  - Format with `formatActivitySummary()`
+- Create stub tools for `search_memory`, `schedule_followup` that return helpful messages
+- Create `createLocalTools(ctx: LocalToolContext): ToolSet`
+- Wire tools into REPL's `runTurn()` call
+- Unit tests with mocked fetch
+
+**Local summarize_activity Implementation:**
+
+```typescript
+import { buildActivitySummary, formatActivitySummary } from "@mieweb/jerry-tools/aw";
+import type { Bucket, RawEvent } from "@mieweb/jerry-tools/aw";
+
+export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
+  return tool({
+    description: "Summarize user activity from ActivityWatch",
+    parameters: z.object({
+      startDate: z.string().describe("Start date (ISO or natural language)"),
+      endDate: z.string().optional().describe("End date (defaults to now)"),
+    }),
+    execute: async ({ startDate, endDate }) => {
+      // Fetch buckets
+      const bucketsRes = await ctx.fetchFn(`${ctx.awUrl}/api/0/buckets`);
+      const buckets: Record<string, Bucket> = await bucketsRes.json();
+
+      // Fetch events for each bucket
+      const events: RawEvent[] = [];
+      for (const bucket of Object.values(buckets)) {
+        const eventsRes = await ctx.fetchFn(
+          `${ctx.awUrl}/api/0/buckets/${bucket.id}/events?start=${startDate}&end=${endDate}`
+        );
+        events.push(...await eventsRes.json());
+      }
+
+      // Reuse existing aggregation
+      const summary = buildActivitySummary(Object.values(buckets), events, {
+        start: new Date(startDate),
+        end: endDate ? new Date(endDate) : new Date(),
+      });
+
+      return formatActivitySummary(summary);
+    },
+  });
+}
+```
+
+**Stub Tools:**
+
+```typescript
+export function createStubSearchMemory() {
+  return tool({
+    description: "Search semantic memory (not available in local mode)",
+    parameters: z.object({ query: z.string() }),
+    execute: async () => "Memory search requires the Jerry worker. Run 'jerry' CLI or use ozwell runtime.",
+  });
+}
+
+export function createStubScheduleFollowup() {
+  return tool({
+    description: "Schedule a follow-up reminder (not available in local mode)",
+    parameters: z.object({ message: z.string(), when: z.string() }),
+    execute: async () => "Scheduling requires the Jerry worker. Use '/remind' command instead (coming soon).",
+  });
+}
+```
+
+**REPL Integration:**
+
+Update `repl.ts` to pass tools:
+
+```typescript
+import { createLocalTools } from "../tools/index.ts";
+
+// In Repl constructor
+this.tools = createLocalTools({ awUrl: "http://127.0.0.1:5600" });
+
+// In handleChat
+for await (const event of this.bridge.runTurn({ 
+  messages: this.messages,
+  tools: this.tools,  // Now includes local tools
+})) {
+```
+
+**Acceptance:**
+
+- `> summarize my July 13th work` → calls ActivityWatch HTTP → returns summary
+- `> search for architecture notes` → returns stub message about worker mode
+- Tool calls visible in response stream (`[tool] summarize_activity...`)
+- Graceful handling when ActivityWatch is not running
+
+**PR checklist:**
+
+- [ ] LocalToolContext interface defined
+- [ ] summarize_activity calls AW HTTP directly
+- [ ] Existing AW aggregation logic reused
+- [ ] Stub tools for search_memory, schedule_followup
+- [ ] createLocalTools() exported
+- [ ] REPL passes tools to runTurn()
+- [ ] Unit tests with mocked fetch
+- [ ] Works when ActivityWatch is running
+- [ ] Graceful error when ActivityWatch is down
 
 ---
 
@@ -922,7 +1122,7 @@ const getLatencyColor = (ms: number) => {
 
 **Status:** Not started
 
-**Goal:** Final polish, documentation, and npm publication.
+**Goal:** Final polish, documentation, and ship-ready npm packaging. Collaborators prove installability in the PR; the **org/repo owner** performs the real registry publish.
 
 **Files:**
 
@@ -937,11 +1137,14 @@ const getLatencyColor = (ms: number) => {
 - Complete README with installation, usage, and examples
 - Add CLI argument parsing (`--version`, `--help`, `--runtime`, `--verbose`)
 - Create user guide documentation
-- Set up npm publish workflow (manual trigger)
+- Set up npm publish workflow (manual trigger; uses org `NPM_TOKEN` secret — not a personal token)
 - Test publish dry-run: `npm publish --dry-run`
+- Prove local install path for PR demo: `npm pack` → `npm i -g ./jerry-term-*.tgz`
+- Attach or link a short screen recording in the PR showing dry-run + local global install + CLI smoke test
 - Verify Bun compatibility: `bun x jerry-term`
 - Add CHANGELOG for version tracking
 - Final QA pass on all features
+- After merge: owner publishes (CLI or workflow) under MIEWEB npm ownership; do **not** publish from a collaborator personal account
 
 **CLI Arguments:**
 
@@ -966,22 +1169,26 @@ Examples:
 **Acceptance:**
 
 - `npm publish --dry-run` succeeds without errors
-- `npm i -g jerry-term` on clean machine works
+- Local global install works: `npm pack` + `npm i -g ./jerry-term-*.tgz` (stand-in for registry until owner publishes)
+- PR includes demo notes and/or short video of local install for owner review
 - `jerry-term --help` shows usage
 - `jerry-term "hello"` runs one-shot query
 - `bun x jerry-term` works (Bun compatibility)
 - README provides complete quickstart
+- Owner publishes to npm (or approves/triggers publish workflow); `npm i -g jerry-term` works on a clean machine afterward
 
 **PR checklist:**
 
 - [ ] README complete with examples
 - [ ] CLI argument parsing implemented
 - [ ] User guide in docs/
-- [ ] Publish workflow created
+- [ ] Publish workflow created (manual; org `NPM_TOKEN`)
 - [ ] Dry-run publish succeeds
+- [ ] Local pack install demo documented (and optional video attached)
 - [ ] Bun compatibility verified
 - [ ] CHANGELOG created
 - [ ] Final QA completed
+- [ ] PR explicitly asks owner to publish — collaborator does **not** `npm publish` from a personal account
 
 ---
 
@@ -1092,15 +1299,17 @@ packages/jerry-term/
 | 2. Bridge Layer     | Jerry abstraction    | 4          | JerryBridge class           |
 | 3. Health Checks    | Diagnostics          | 8          | `/health` command           |
 | 4. Basic REPL       | Core interaction     | 11         | Working CLI with commands   |
+| 4.5. Local Tools    | Tool enablement      | 6          | summarize_activity via AW HTTP |
 | 5. Ink UI           | Rich terminal + theme| 12         | Full-screen UI with design system |
 | 6. Observability    | Real-time visibility | 7          | Tool/thinking panels with tree view |
-| 7. Polish & Publish | Ship it              | 5          | npm package live            |
+| 7. Polish & Publish | Ship it              | 5          | Pack-ready PR + owner npm publish |
 
 ---
 
 ## Done When
 
-- `npm i -g jerry-term` installs successfully on clean machine
+- Local install path proven in Slice 7 PR (`npm pack` / dry-run); owner then publishes under MIEWEB
+- `npm i -g jerry-term` installs successfully on clean machine (after owner publish)
 - `jerry-term` starts interactive REPL with Ink UI
 - `/runtime local|ozwell|byo-cloud` switches backend dynamically
 - `/health` shows status of Ollama, ActivityWatch, Footnote, MCP tools
@@ -1108,7 +1317,7 @@ packages/jerry-term/
 - `jerry-term "summarize my day"` works as one-shot query
 - Bun compatible (`bun x jerry-term` works)
 - Documentation complete in README and docs/
-- Published to npm registry
+- Published to npm registry (org-owned package, not personal collaborator account)
 
 ---
 
