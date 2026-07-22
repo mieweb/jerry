@@ -307,7 +307,7 @@ flowchart TD
 - [x] `resolveRuntime()` handles all three profiles
 - [x] Mock tests for both backends pass (79 tests total)
 - [x] Profile configuration documented (README.md)
-- [ ] Acceptance scenarios verified manually
+- [x] Acceptance scenarios verified manually
 
 **Notes / deviations:**
 
