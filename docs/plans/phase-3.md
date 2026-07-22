@@ -271,7 +271,7 @@ Interactive terminal CLI for Jerry with runtime switching, health checks, and re
 
 ## Slice 1: Project Scaffold
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Create the `packages/jerry-term/` directory with build configuration for bundled distribution.
 
