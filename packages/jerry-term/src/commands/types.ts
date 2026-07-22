@@ -4,7 +4,7 @@
 
 import type { JerryBridge } from "../bridge/index.ts";
 import type { TermConfig } from "../config/index.ts";
-import type { OutputWriter } from "../repl/output.ts";
+import type { IOutputWriter } from "../repl/output.ts";
 
 export interface Command {
   name: string;
@@ -17,7 +17,7 @@ export interface Command {
 export interface CommandContext {
   bridge: JerryBridge;
   config: TermConfig;
-  output: OutputWriter;
+  output: IOutputWriter;
   exit: () => void;
   updateConfig: (updates: Partial<TermConfig>) => void;
 }

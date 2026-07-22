@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef } from "react";
-import { useKeyboard } from "@opentui/react";
+import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import type { JerryBridge } from "../bridge/index.ts";
 import type { TermConfig } from "../config/index.ts";
@@ -13,8 +13,12 @@ import { getTheme } from "./theme/index.ts";
 import { useBridge } from "./hooks/useBridge.ts";
 import { useRepl } from "./hooks/useRepl.ts";
 import type { TranscriptLine } from "./components/ResponseArea.tsx";
+import { PanelLayout } from "./layout/PanelLayout.tsx";
 
 const VERSION = "0.1.0";
+
+/** Fixed chrome rows: header + input + status (each height 3 including border). */
+const CHROME_ROWS = 9;
 
 export interface AppProps {
   bridge: JerryBridge;
@@ -59,6 +63,7 @@ function getLinePrefix(type: TranscriptLine["type"]): string {
 
 export function App({ bridge, config, registry, onExit }: AppProps): React.ReactNode {
   const theme = getTheme("dark");
+  const { width, height } = useTerminalDimensions();
   const scrollboxRef = useRef<ScrollBoxRenderable | null>(null);
 
   const { state: bridgeState } = useBridge(bridge);
@@ -75,7 +80,23 @@ export function App({ bridge, config, registry, onExit }: AppProps): React.React
     handleHistoryDown,
     clearTranscript,
     exitApp,
+    observability,
   } = useRepl(bridge, config, registry, onExit);
+
+  const obsTools = observability.getToolsArray();
+  const obsCompletedCount = observability.getCompletedCount();
+  const obsTotalCount = observability.getTotalCount();
+
+  // Reserve space for optional tool/thinking panels so the scrollbox stays bounded.
+  const thinkingRows =
+    observability.state.phase !== "idle"
+      ? observability.state.thinkingExpanded
+        ? 5
+        : 3
+      : 0;
+  const toolsRows =
+    obsTools.length > 0 ? (observability.state.toolsExpanded ? Math.min(10, 3 + obsTools.length) : 3) : 0;
+  const centerHeight = Math.max(height - CHROME_ROWS - thinkingRows - toolsRows, 5);
 
   useEffect(() => {
     const box = scrollboxRef.current;
@@ -87,6 +108,39 @@ export function App({ bridge, config, registry, onExit }: AppProps): React.React
   useKeyboard((event) => {
     if (event.ctrl && event.name === "c") {
       exitApp();
+      return;
+    }
+
+    if (event.ctrl && event.name === "t") {
+      observability.toggleTools();
+      return;
+    }
+
+    if (event.ctrl && event.name === "k") {
+      observability.toggleThinking();
+      return;
+    }
+
+    if (event.ctrl && event.name === "e") {
+      observability.toggleOutputs();
+      return;
+    }
+
+    // Scroll transcript without stealing focus from the input.
+    if (event.name === "pageup") {
+      scrollboxRef.current?.scrollBy(-1, "viewport");
+      return;
+    }
+    if (event.name === "pagedown") {
+      scrollboxRef.current?.scrollBy(1, "viewport");
+      return;
+    }
+    if (event.shift && event.name === "up") {
+      scrollboxRef.current?.scrollBy(-3);
+      return;
+    }
+    if (event.shift && event.name === "down") {
+      scrollboxRef.current?.scrollBy(3);
       return;
     }
 
@@ -118,107 +172,141 @@ export function App({ bridge, config, registry, onExit }: AppProps): React.React
   const statusColor = busy ? theme.colors.info : bridgeState.connected ? theme.colors.success : theme.colors.error;
 
   return (
-    <>
-      <box style={{ width: "100%", height: "100%", flexDirection: "column" }}>
-        {/* Header - fixed */}
-        <box
-          style={{
-            width: "100%",
-            height: 3,
-            border: true,
-            borderColor: theme.colors.borderPrimary,
-            paddingLeft: 1,
-            paddingRight: 1,
-            backgroundColor: theme.colors.bgSecondary,
-            flexDirection: "row",
-            justifyContent: "space-between",
-          }}
-        >
-          <box style={{ flexDirection: "row" }}>
-            <text style={{ fg: bridgeState.connected ? theme.colors.success : theme.colors.error }}>●</text>
-            <text style={{ fg: theme.colors.textPrimary }}><b> jerry-term</b></text>
-            <text style={{ fg: theme.colors.textSecondary }}> v{VERSION}</text>
-          </box>
-          <box style={{ flexDirection: "row" }}>
-            <text style={{ fg: theme.colors.accent }}>[{bridgeState.runtimeKind}]</text>
-            <text style={{ fg: theme.colors.textSecondary }}> {bridgeState.model}</text>
-          </box>
+    <box
+      width={width}
+      height={height}
+      flexDirection="column"
+      backgroundColor={theme.colors.bgPrimary}
+      overflow="hidden"
+    >
+      {/* Header - fixed */}
+      <box
+        width="100%"
+        height={3}
+        flexShrink={0}
+        border
+        borderColor={theme.colors.borderPrimary}
+        paddingLeft={1}
+        paddingRight={1}
+        backgroundColor={theme.colors.bgSecondary}
+        flexDirection="row"
+        justifyContent="space-between"
+      >
+        <box flexDirection="row">
+          <text style={{ fg: bridgeState.connected ? theme.colors.success : theme.colors.error }}>●</text>
+          <text style={{ fg: theme.colors.textPrimary }}><b> jerry-term</b></text>
+          <text style={{ fg: theme.colors.textSecondary }}> v{VERSION}</text>
         </box>
+        <box flexDirection="row">
+          <text style={{ fg: theme.colors.accent }}>[{bridgeState.runtimeKind}]</text>
+          <text style={{ fg: theme.colors.textSecondary }}> {bridgeState.model}</text>
+        </box>
+      </box>
 
-        {/* Scrollbox transcript - grows to fill */}
+      {/* Observability panels + transcript */}
+      <PanelLayout
+        phase={observability.state.phase}
+        tools={obsTools}
+        thinkingExpanded={observability.state.thinkingExpanded}
+        toolsExpanded={observability.state.toolsExpanded}
+        outputsExpanded={observability.state.outputsExpanded}
+        colors={theme.colors}
+        height={centerHeight + thinkingRows + toolsRows}
+      >
         <scrollbox
           ref={scrollboxRef}
-          style={{
-            flexGrow: 1,
-            border: true,
-            borderColor: theme.colors.borderPrimary,
-            paddingLeft: 1,
-            paddingRight: 1,
-          }}
+          flexGrow={1}
+          flexShrink={1}
+          minHeight={0}
+          height={centerHeight}
+          border
+          borderColor={theme.colors.borderPrimary}
+          paddingLeft={1}
+          paddingRight={1}
+          stickyScroll
+          stickyStart="bottom"
+          scrollY
           focused={false}
+          rootOptions={{ backgroundColor: theme.colors.bgPrimary }}
+          viewportOptions={{ backgroundColor: theme.colors.bgPrimary }}
+          contentOptions={{ backgroundColor: theme.colors.bgPrimary }}
+          scrollbarOptions={{
+            trackOptions: {
+              foregroundColor: theme.colors.accent,
+              backgroundColor: theme.colors.bgTertiary,
+            },
+          }}
         >
-          {transcript.map((line) => (
-            <box key={line.id} style={{ width: "100%" }}>
+          {transcript.map((line, index) => (
+            <box
+              key={line.id}
+              width="100%"
+              marginTop={line.type === "user" && index > 0 ? 1 : 0}
+            >
               <text style={{ fg: getLineColor(line.type, theme.colors) }}>
                 {getLinePrefix(line.type)}{line.content}
               </text>
             </box>
           ))}
           {streamingContent ? (
-            <box style={{ width: "100%" }}>
+            <box width="100%">
               <text style={{ fg: theme.colors.textPrimary }}>{streamingContent}</text>
             </box>
           ) : null}
         </scrollbox>
+      </PanelLayout>
 
-        {/* Input - fixed */}
-        <box
-          style={{
-            width: "100%",
-            height: 3,
-            border: true,
-            borderColor: theme.colors.borderPrimary,
-            paddingLeft: 1,
-            paddingRight: 1,
-            flexDirection: "row",
-          }}
-        >
-          <text style={{ fg: theme.colors.accent }}><b>{">"} </b></text>
-          {busy ? (
-            <text style={{ fg: theme.colors.textMuted }}>processing...</text>
-          ) : (
-            <input
-              style={{ flexGrow: 1 }}
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={onInputSubmit as any}
-              focused
-            />
-          )}
-        </box>
-
-        {/* Status bar - fixed */}
-        <box
-          style={{
-            width: "100%",
-            height: 3,
-            border: true,
-            borderColor: theme.colors.borderSecondary,
-            paddingLeft: 1,
-            paddingRight: 1,
-            flexDirection: "row",
-          }}
-        >
-          <text style={{ fg: statusColor }}>●</text>
-          <text style={{ fg: theme.colors.textSecondary }}> {statusText}</text>
-          <text style={{ fg: theme.colors.textMuted }}> • </text>
-          <text style={{ fg: theme.colors.textSecondary }}>
-            Last: {lastLatencyMs !== null ? `${(lastLatencyMs / 1000).toFixed(1)}s` : "-"}
-          </text>
-          <text style={{ fg: theme.colors.textMuted }}> • </text>
-          <text style={{ fg: theme.colors.textSecondary }}>Tools: {toolCount}</text>
-        </box>
+      {/* Input - fixed */}
+      <box
+        width="100%"
+        height={3}
+        flexShrink={0}
+        border
+        borderColor={theme.colors.borderPrimary}
+        paddingLeft={1}
+        paddingRight={1}
+        flexDirection="row"
+        backgroundColor={theme.colors.bgPrimary}
+      >
+        <text style={{ fg: theme.colors.accent }}><b>{">"} </b></text>
+        {busy ? (
+          <text style={{ fg: theme.colors.textMuted }}>processing...</text>
+        ) : (
+          <input
+            focused
+            value={inputValue}
+            onChange={setInputValue}
+            onSubmit={onInputSubmit as any}
+            style={{ flexGrow: 1 }}
+          />
+        )}
       </box>
-    </>
+
+      {/* Status bar - fixed */}
+      <box
+        width="100%"
+        height={3}
+        flexShrink={0}
+        border
+        borderColor={theme.colors.borderSecondary}
+        paddingLeft={1}
+        paddingRight={1}
+        flexDirection="row"
+        backgroundColor={theme.colors.bgSecondary}
+      >
+        <text style={{ fg: statusColor }}>●</text>
+        <text style={{ fg: theme.colors.textSecondary }}> {statusText}</text>
+        <text style={{ fg: theme.colors.textMuted }}> • </text>
+        <text style={{ fg: theme.colors.textSecondary }}>
+          Last: {lastLatencyMs !== null ? `${(lastLatencyMs / 1000).toFixed(1)}s` : "-"}
+        </text>
+        <text style={{ fg: theme.colors.textMuted }}> • </text>
+        <text style={{ fg: theme.colors.textSecondary }}>
+          Tools: {obsTotalCount > 0 ? `${obsCompletedCount}/${obsTotalCount}` : toolCount}
+        </text>
+        <text style={{ fg: theme.colors.textMuted }}> • </text>
+        <text style={{ fg: theme.colors.textMuted }}>PgUp/PgDn scroll</text>
+      </box>
+    </box>
   );
 }

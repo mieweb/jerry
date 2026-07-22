@@ -5,6 +5,7 @@ import { CommandRegistry } from "./registry.ts";
 import { runtimeCommand } from "./runtime.ts";
 import { configCommand } from "./config.ts";
 import { exitCommand } from "./exit.ts";
+import { awTailCommand } from "./aw.ts";
 import { createHelpCommand } from "./help.ts";
 import { createDefaultRegistry } from "./index.ts";
 import type { CommandContext } from "./types.ts";
@@ -82,12 +83,33 @@ describe("Command Registry", () => {
   it("creates default registry with all commands", () => {
     const registry = createDefaultRegistry();
     const all = registry.getAll();
-    assert.equal(all.length, 5);
+    assert.equal(all.length, 6);
     assert.ok(registry.has("runtime"));
     assert.ok(registry.has("health"));
+    assert.ok(registry.has("aw-tail"));
+    assert.ok(registry.has("aw"));
     assert.ok(registry.has("config"));
     assert.ok(registry.has("help"));
     assert.ok(registry.has("exit"));
+  });
+});
+
+describe("AW Tail Command", () => {
+  it("reports unreachable ActivityWatch", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock.fn(() =>
+      Promise.reject(new Error("fetch failed: ECONNREFUSED"))
+    ) as unknown as typeof fetch;
+
+    try {
+      const ctx = createMockContext();
+      await awTailCommand.execute([], ctx);
+
+      const calls = getMockCalls(ctx.output.writeLine);
+      assert.ok(calls.some((c) => String(c.arguments[0]).includes("Unreachable")));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

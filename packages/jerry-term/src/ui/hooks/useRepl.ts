@@ -10,6 +10,7 @@ import type { CommandRegistry, CommandContext } from "../../commands/index.ts";
 import type { TranscriptLine } from "../components/ResponseArea.tsx";
 import { createLocalTools } from "../../tools/index.ts";
 import type { IOutputWriter } from "../../repl/output.ts";
+import { useObservability, type UseObservabilityResult } from "./useObservability.ts";
 
 const COMMAND_REGEX = /^\/(\S+)\s*(.*)/;
 
@@ -27,6 +28,7 @@ export interface UseReplResult {
   handleHistoryDown: () => void;
   clearTranscript: () => void;
   exitApp: () => void;
+  observability: UseObservabilityResult;
 }
 
 let lineIdCounter = 0;
@@ -53,6 +55,7 @@ export function useRepl(
   const cancelledRef = useRef(false);
 
   const tools: ToolSet = useMemo(() => createLocalTools(), []);
+  const observability = useObservability();
 
   const addLine = useCallback((type: TranscriptLine["type"], content: string) => {
     setTranscript((prev) => [...prev, { id: nextLineId(), type, content }]);
@@ -129,11 +132,15 @@ export function useRepl(
       const startTime = Date.now();
       cancelledRef.current = false;
 
+      observability.startTurn();
+
       try {
         for await (const event of bridge.runTurn({
           messages: messagesRef.current,
           tools,
         })) {
+          observability.dispatch(event);
+
           if (cancelledRef.current) {
             addLine("system", "(cancelled)");
             break;
@@ -145,13 +152,12 @@ export function useRepl(
               assistantContent += event.text;
               break;
             case "tool-call":
-              if (streamingContent || assistantContent) {
+              if (assistantContent) {
                 setStreamingContent("");
+                assistantContent = "";
               }
-              addLine("tool", `${event.toolName}...`);
               break;
             case "tool-result":
-              addLine("result", `${event.toolName} done`);
               break;
             case "finish":
               if (assistantContent) {
@@ -176,9 +182,10 @@ export function useRepl(
         );
       }
 
+      observability.endTurn();
       setStreamingContent("");
     },
-    [bridge, tools, addLine]
+    [bridge, tools, addLine, observability]
   );
 
   const handleSubmit = useCallback(
@@ -255,5 +262,6 @@ export function useRepl(
     handleHistoryDown,
     clearTranscript,
     exitApp,
+    observability,
   };
 }

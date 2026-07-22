@@ -16,6 +16,33 @@ import {
 import type { LocalToolContext } from "./types.ts";
 
 const MAX_EVENTS_PER_BUCKET = 5000;
+const FETCH_TIMEOUT_MS = 60000;
+
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+async function fetchWithTimeout(
+  fetchFn: typeof fetch,
+  url: string,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchFn(url, { signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new TimeoutError(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface BucketsResponse {
   [key: string]: Bucket;
@@ -36,8 +63,12 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
 
     execute: async ({ timeRange }) => {
       try {
-        // Fetch buckets
-        const bucketsRes = await ctx.fetchFn(`${ctx.awUrl}/api/0/buckets`);
+        // Fetch buckets (trailing slash required - AW redirects without it)
+        const bucketsRes = await fetchWithTimeout(
+          ctx.fetchFn,
+          `${ctx.awUrl}/api/0/buckets/`,
+          FETCH_TIMEOUT_MS
+        );
         if (!bucketsRes.ok) {
           return `ActivityWatch is not responding (HTTP ${bucketsRes.status}). Make sure it's running.`;
         }
@@ -63,6 +94,7 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
 
         for (const bucket of buckets) {
           try {
+            // No trailing slash — AW 0.13 serves /events ( /events/ returns 404 )
             const eventsUrl = new URL(
               `${ctx.awUrl}/api/0/buckets/${encodeURIComponent(bucket.id)}/events`
             );
@@ -70,7 +102,11 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
             eventsUrl.searchParams.set("end", endIso);
             eventsUrl.searchParams.set("limit", String(MAX_EVENTS_PER_BUCKET));
 
-            const eventsRes = await ctx.fetchFn(eventsUrl.toString());
+            const eventsRes = await fetchWithTimeout(
+              ctx.fetchFn,
+              eventsUrl.toString(),
+              FETCH_TIMEOUT_MS
+            );
             if (eventsRes.ok) {
               const events = (await eventsRes.json()) as RawEvent[];
               eventsByBucket[bucket.id] = events;
@@ -79,7 +115,9 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
               eventsByBucket[bucket.id] = [];
               pagesByBucket[bucket.id] = 0;
             }
-          } catch {
+          } catch (bucketError) {
+            // Log bucket-level errors for debugging
+            console.error(`[summarize_activity] Error fetching bucket ${bucket.id}:`, bucketError);
             eventsByBucket[bucket.id] = [];
             pagesByBucket[bucket.id] = 0;
           }
@@ -95,6 +133,10 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
 
         return formatActivityContext(summary);
       } catch (error) {
+        console.error("[summarize_activity] Error:", error);
+        if (error instanceof TimeoutError) {
+          return "ActivityWatch request timed out. The server may be slow or unresponsive.";
+        }
         if (error instanceof Error) {
           if (error.message.includes("ECONNREFUSED") || error.message.includes("fetch failed")) {
             return "ActivityWatch is not running. Please start ActivityWatch and try again.";

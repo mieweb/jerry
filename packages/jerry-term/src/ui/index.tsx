@@ -26,7 +26,25 @@ let root: Root | null = null;
 export async function startUi(options: StartUiOptions): Promise<void> {
   const { bridge, config, registry } = options;
 
-  renderer = await createCliRenderer();
+  // OpenTUI reads this at resolve-time and it overrides config.screenMode.
+  // Force sticky fullscreen so shell scrollback cannot steal the mouse wheel.
+  process.env.OTUI_USE_ALTERNATE_SCREEN = "true";
+  delete process.env.OTUI_NO_NATIVE_RENDER;
+
+  renderer = await createCliRenderer({
+    screenMode: "alternate-screen",
+    backgroundColor: "#0f0f0f",
+    exitOnCtrlC: false,
+    useMouse: true,
+    enableMouseMovement: true,
+    consoleMode: "console-overlay",
+    openConsoleOnError: false,
+  });
+
+  if (renderer.screenMode !== "alternate-screen") {
+    renderer.screenMode = "alternate-screen";
+  }
+
   root = createRoot(renderer);
 
   const exitFn = () => {

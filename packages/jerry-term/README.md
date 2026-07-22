@@ -34,11 +34,18 @@ jerry-term --no-ui
 
 ## UI Overview
 
-jerry-term provides a full-screen terminal UI with four main sections:
+jerry-term provides a full-screen terminal UI with observability panels:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ ● jerry-term v0.1.0                  [local] ollama:qwen2.5:3b  │  ← Header
+├─────────────────────────────────────────────────────────────────┤
+│ ▼ 🤔 Thinking                                           [Ctrl+K]│  ← Thinking Panel
+│   ⠋ Waiting for model...                                       │    (visible while busy)
+├─────────────────────────────────────────────────────────────────┤
+│ ▼ 🔧 Tools (2)                                          [Ctrl+T]│  ← Tools Panel
+│ ├─ ✓ summarize_activity (2.3s)                                 │    (visible when tools active)
+│ └─ ⏳ search_memory (...)                                       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │ Based on your ActivityWatch data, you spent most of your time  │  ← Response Area
@@ -47,14 +54,16 @@ jerry-term provides a full-screen terminal UI with four main sections:
 ├─────────────────────────────────────────────────────────────────┤
 │ > _                                                             │  ← Input Prompt
 ├─────────────────────────────────────────────────────────────────┤
-│ ● Connected • Last: 2.3s • Tools: 6                            │  ← Status Bar
+│ ● Ready • Last: 2.3s • Tools: 2/2                              │  ← Status Bar
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 - **Header**: Shows connection status, current runtime, and model
-- **Response Area**: Displays conversation with Jerry (user input, assistant responses, tool calls)
+- **Thinking Panel**: Shows current inference phase (waiting/tools/generating); auto-hides when idle
+- **Tools Panel**: Real-time tool execution tree with status, timing, and expandable output
+- **Response Area**: Displays conversation with Jerry (user input, assistant responses)
 - **Input Prompt**: Type messages or commands here
-- **Status Bar**: Shows connection state, last response time, and available tools
+- **Status Bar**: Shows connection state, last response time, and tool progress (done/total)
 
 ## Keyboard Shortcuts
 
@@ -63,6 +72,9 @@ jerry-term provides a full-screen terminal UI with four main sections:
 | `Enter` | Submit input |
 | `↑` / `↓` | Navigate command history |
 | `Scroll` | Mouse/trackpad scroll in transcript area |
+| `Ctrl+T` | Toggle Tools panel visibility |
+| `Ctrl+K` | Toggle Thinking panel visibility |
+| `Ctrl+E` | Expand/collapse all tool outputs |
 | `Ctrl+L` | Clear transcript |
 | `Ctrl+C` | Cancel current turn (if busy) or exit |
 
@@ -74,6 +86,7 @@ All commands start with `/`:
 |---------|---------|-------------|
 | `/runtime <kind>` | `/rt` | Switch runtime: `local`, `ozwell`, `byo-cloud` |
 | `/health` | `/hc` | Run system health checks |
+| `/aw-tail [limit] [bucket]` | `/aw`, `/activity` | Peek latest ActivityWatch events (connectivity check) |
 | `/config [key] [value]` | `/cfg` | View or update configuration |
 | `/help [command]` | `/h`, `/?` | Show help |
 | `/exit` | `/q`, `/quit` | Exit the CLI |
@@ -86,6 +99,11 @@ All commands start with `/`:
 
 # Check system health
 > /health
+
+# Peek latest ActivityWatch events
+> /aw-tail
+> /aw 20
+> /aw-tail aw-watcher-window_Mac
 
 # View current configuration
 > /config
@@ -278,6 +296,25 @@ If the UI doesn't render correctly:
 - Ensure your terminal supports truecolor (256+ colors)
 - Try a modern terminal emulator (Kitty, Ghostty, WezTerm, Alacritty, iTerm2)
 - Use `--no-ui` flag for the legacy readline REPL (works with Node.js)
+
+### Sticky TUI / transcript scroll — UNSOLVED
+
+**Status: unsolved.** jerry-term may still scroll with the host terminal’s scrollback, and the in-app transcript may not receive the mouse wheel.
+
+Workarounds while this is open:
+- Scroll the transcript with **PgUp / PgDown** (or Shift+↑ / Shift+↓)
+- Try another terminal (Kitty, Ghostty, WezTerm, Alacritty) or iTerm2 alternate-screen / mouse settings
+- Do not set `OTUI_USE_ALTERNATE_SCREEN=false`
+- Use `--no-ui` if you need a reliable non-fullscreen REPL
+
+Tracked in [`docs/plans/phase-3.md`](../../docs/plans/phase-3.md) under *Open: Sticky fullscreen / transcript scroll*.
+
+### Copy/paste text
+
+The full-screen UI captures keyboard input. To copy text from the transcript:
+- **macOS:** Hold `Option` while clicking and dragging to select, then `Cmd+C`
+- **Linux/Windows:** Hold `Alt` while selecting, then `Ctrl+Shift+C`
+- **Alternative:** Use `--no-ui` mode for standard terminal selection
 
 ### Ozwell fallback
 

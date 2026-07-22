@@ -86,26 +86,26 @@ Based on [CLI UI design guidelines](https://github.com/davila7/claude-code-templ
 ```typescript
 // src/ui/theme/colors.ts
 export const terminalColors = {
-  // Background colors
-  bgPrimary: "#0f0f0f",
-  bgSecondary: "#1a1a1a",
-  bgTertiary: "#2a2a2a",
+    // Background colors
+    bgPrimary: "#0f0f0f",
+    bgSecondary: "#1a1a1a",
+    bgTertiary: "#2a2a2a",
 
-  // Text colors
-  textPrimary: "#ffffff",
-  textSecondary: "#a0a0a0",
-  textMuted: "#606060",
+    // Text colors
+    textPrimary: "#ffffff",
+    textSecondary: "#a0a0a0",
+    textMuted: "#606060",
 
-  // Accent colors
-  accent: "#d97706",        // Orange - primary accent
-  success: "#10b981",       // Green - success states
-  warning: "#f59e0b",       // Yellow - warnings
-  error: "#ef4444",         // Red - errors
-  info: "#3b82f6",          // Blue - information
+    // Accent colors
+    accent: "#d97706", // Orange - primary accent
+    success: "#10b981", // Green - success states
+    warning: "#f59e0b", // Yellow - warnings
+    error: "#ef4444", // Red - errors
+    info: "#3b82f6", // Blue - information
 
-  // Border colors
-  borderPrimary: "#404040",
-  borderSecondary: "#606060",
+    // Border colors
+    borderPrimary: "#404040",
+    borderSecondary: "#606060",
 };
 ```
 
@@ -113,34 +113,36 @@ export const terminalColors = {
 
 ```typescript
 // src/ui/theme/typography.ts
-export const fontStack = "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace";
+export const fontStack =
+    "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace";
 ```
 
 All text uses monospace fonts for authentic terminal feel. Ink handles this via the `Text` component.
 
 ### Terminal Symbols
 
-| Symbol | Usage |
-|--------|-------|
-| `$` | System/shell prompts |
-| `>` | User input prompt |
-| `⎿` | Continuation/sub-item indicator |
-| `•` | List item / separator |
-| `─`, `│`, `┌`, `┐`, `└`, `┘` | Box drawing |
+| Symbol                       | Usage                           |
+| ---------------------------- | ------------------------------- |
+| `$`                          | System/shell prompts            |
+| `>`                          | User input prompt               |
+| `⎿`                          | Continuation/sub-item indicator |
+| `•`                          | List item / separator           |
+| `─`, `│`, `┌`, `┐`, `└`, `┘` | Box drawing                     |
 
 ### Status Indicators
 
 ```typescript
 // src/ui/components/StatusDot.tsx
 const statusColors = {
-  ok: "#10b981",      // Green dot
-  warn: "#f59e0b",    // Orange dot
-  error: "#ef4444",   // Red dot
-  pending: "#3b82f6", // Blue dot (animated)
+    ok: "#10b981", // Green dot
+    warn: "#f59e0b", // Orange dot
+    error: "#ef4444", // Red dot
+    pending: "#3b82f6", // Blue dot (animated)
 };
 ```
 
 Visual indicators:
+
 - **Status dots:** 8×8px colored circles
 - **Checkmarks:** `✓` (success), `✗` (failure), `⚠` (warning)
 - **Spinners:** Animated for pending operations
@@ -149,6 +151,7 @@ Visual indicators:
 ### Component Patterns
 
 **Command Sections:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ ● command_name                          │
@@ -160,11 +163,13 @@ Visual indicators:
 ```
 
 **Input Prompt:**
+
 ```
 > _                          (cursor blinks)
 ```
 
 **Tool Execution:**
+
 ```
 🔧 Tools
 ├─ ✓ aw_get_activity (2.3s)
@@ -186,15 +191,15 @@ Visual indicators:
 export type ThemeMode = "dark" | "light";
 
 export const themes = {
-  dark: terminalColors,
-  light: {
-    bgPrimary: "#f8f9fa",
-    bgSecondary: "#e9ecef",
-    bgTertiary: "#dee2e6",
-    textPrimary: "#1f2937",
-    textSecondary: "#6b7280",
-    // ... inverted scheme
-  },
+    dark: terminalColors,
+    light: {
+        bgPrimary: "#f8f9fa",
+        bgSecondary: "#e9ecef",
+        bgTertiary: "#dee2e6",
+        textPrimary: "#1f2937",
+        textSecondary: "#6b7280",
+        // ... inverted scheme
+    },
 };
 ```
 
@@ -224,8 +229,8 @@ flowchart TD
 
 We are **not** opening a PR per slice. Slice boundaries remain the implementation and commit cadence (clear commit messages, local acceptance checks), but review and merge happen once via a **major PR** after the planned slices are complete (through Slice 7 polish, or when the branch is otherwise ready to ship against `development`).
 
-| Slice | Work lands on |
-|-------|----------------|
+| Slice                 | Work lands on       |
+| --------------------- | ------------------- |
 | Slice 1–7 (incl. 4.5) | `phase3/jerry-term` |
 
 **Workflow:**
@@ -243,10 +248,10 @@ We are **not** opening a PR per slice. Slice boundaries remain the implementatio
 
 GitHub collaborator/maintainer on `mieweb/jerry` does **not** grant npm publish rights. `jerry-term` is an unscoped public package name; the **first** successful `npm publish` owns that name on the registry. Collaborators must **not** publish under a personal npm account (that would make them the package owner instead of MIEWEB).
 
-| Role | Responsibility |
-|------|----------------|
-| Collaborator / PR author | Prove installability locally; open PR with dry-run + pack demo; **do not** `npm publish` to the public registry |
-| Repo / org owner | Publish under the MIEWEB npm account (or CI with an org Automation/Granular token); optionally `npm owner add <collaborator>` afterward |
+| Role                     | Responsibility                                                                                                                          |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Collaborator / PR author | Prove installability locally; open PR with dry-run + pack demo; **do not** `npm publish` to the public registry                         |
+| Repo / org owner         | Publish under the MIEWEB npm account (or CI with an org Automation/Granular token); optionally `npm owner add <collaborator>` afterward |
 
 **Local install demo for PRs (no registry):**
 
@@ -433,7 +438,7 @@ export default defineConfig({
 **PR checklist:**
 
 - [x] Package initialized with correct metadata
-- [x] tsup config bundles @mieweb/\* packages
+- [x] tsup config bundles @mieweb/ packages
 - [x] Build produces self-contained output
 - [x] Local install via npm link works
 - [x] Typecheck passes
@@ -672,6 +677,7 @@ export interface CommandContext {
 Jerry's tools (`summarize_activity`, `search_memory`, etc.) require a `ToolContext` with Cloudflare bindings (`db`, `vectors`, `bucket`). The jerry-term CLI runs locally without these bindings, so tools don't work out of the box.
 
 This slice creates a `LocalToolContext` that:
+
 1. Calls ActivityWatch HTTP API directly (skip collector/D1 middleman)
 2. Reuses existing AW aggregation logic from `packages/tools/src/aw/`
 3. Stubs non-essential tools for local use
@@ -718,10 +724,10 @@ This slice creates a `LocalToolContext` that:
 
 - Define `LocalToolContext` interface (awUrl, fetchFn)
 - Implement local `summarize_activity`:
-  - Fetch buckets from `GET /api/0/buckets`
-  - Fetch events from `GET /api/0/buckets/{id}/events?start=...&end=...`
-  - Reuse `buildActivitySummary()` from `@mieweb/jerry-tools/aw`
-  - Format with `formatActivitySummary()`
+    - Fetch buckets from `GET /api/0/buckets`
+    - Fetch events from `GET /api/0/buckets/{id}/events?start=...&end=...`
+    - Reuse `buildActivitySummary()` from `@mieweb/jerry-tools/aw`
+    - Format with `formatActivitySummary()`
 - Create stub tools for `search_memory`, `schedule_followup` that return helpful messages
 - Create `createLocalTools(ctx: LocalToolContext): ToolSet`
 - Wire tools into REPL's `runTurn()` call
@@ -730,39 +736,51 @@ This slice creates a `LocalToolContext` that:
 **Local summarize_activity Implementation:**
 
 ```typescript
-import { buildActivitySummary, formatActivitySummary } from "@mieweb/jerry-tools/aw";
+import {
+    buildActivitySummary,
+    formatActivitySummary,
+} from "@mieweb/jerry-tools/aw";
 import type { Bucket, RawEvent } from "@mieweb/jerry-tools/aw";
 
 export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
-  return tool({
-    description: "Summarize user activity from ActivityWatch",
-    parameters: z.object({
-      startDate: z.string().describe("Start date (ISO or natural language)"),
-      endDate: z.string().optional().describe("End date (defaults to now)"),
-    }),
-    execute: async ({ startDate, endDate }) => {
-      // Fetch buckets
-      const bucketsRes = await ctx.fetchFn(`${ctx.awUrl}/api/0/buckets`);
-      const buckets: Record<string, Bucket> = await bucketsRes.json();
+    return tool({
+        description: "Summarize user activity from ActivityWatch",
+        parameters: z.object({
+            startDate: z
+                .string()
+                .describe("Start date (ISO or natural language)"),
+            endDate: z
+                .string()
+                .optional()
+                .describe("End date (defaults to now)"),
+        }),
+        execute: async ({ startDate, endDate }) => {
+            // Fetch buckets
+            const bucketsRes = await ctx.fetchFn(`${ctx.awUrl}/api/0/buckets`);
+            const buckets: Record<string, Bucket> = await bucketsRes.json();
 
-      // Fetch events for each bucket
-      const events: RawEvent[] = [];
-      for (const bucket of Object.values(buckets)) {
-        const eventsRes = await ctx.fetchFn(
-          `${ctx.awUrl}/api/0/buckets/${bucket.id}/events?start=${startDate}&end=${endDate}`
-        );
-        events.push(...await eventsRes.json());
-      }
+            // Fetch events for each bucket
+            const events: RawEvent[] = [];
+            for (const bucket of Object.values(buckets)) {
+                const eventsRes = await ctx.fetchFn(
+                    `${ctx.awUrl}/api/0/buckets/${bucket.id}/events?start=${startDate}&end=${endDate}`,
+                );
+                events.push(...(await eventsRes.json()));
+            }
 
-      // Reuse existing aggregation
-      const summary = buildActivitySummary(Object.values(buckets), events, {
-        start: new Date(startDate),
-        end: endDate ? new Date(endDate) : new Date(),
-      });
+            // Reuse existing aggregation
+            const summary = buildActivitySummary(
+                Object.values(buckets),
+                events,
+                {
+                    start: new Date(startDate),
+                    end: endDate ? new Date(endDate) : new Date(),
+                },
+            );
 
-      return formatActivitySummary(summary);
-    },
-  });
+            return formatActivitySummary(summary);
+        },
+    });
 }
 ```
 
@@ -770,19 +788,22 @@ export function createLocalSummarizeActivityTool(ctx: LocalToolContext) {
 
 ```typescript
 export function createStubSearchMemory() {
-  return tool({
-    description: "Search semantic memory (not available in local mode)",
-    parameters: z.object({ query: z.string() }),
-    execute: async () => "Memory search requires the Jerry worker. Run 'jerry' CLI or use ozwell runtime.",
-  });
+    return tool({
+        description: "Search semantic memory (not available in local mode)",
+        parameters: z.object({ query: z.string() }),
+        execute: async () =>
+            "Memory search requires the Jerry worker. Run 'jerry' CLI or use ozwell runtime.",
+    });
 }
 
 export function createStubScheduleFollowup() {
-  return tool({
-    description: "Schedule a follow-up reminder (not available in local mode)",
-    parameters: z.object({ message: z.string(), when: z.string() }),
-    execute: async () => "Scheduling requires the Jerry worker. Use '/remind' command instead (coming soon).",
-  });
+    return tool({
+        description:
+            "Schedule a follow-up reminder (not available in local mode)",
+        parameters: z.object({ message: z.string(), when: z.string() }),
+        execute: async () =>
+            "Scheduling requires the Jerry worker. Use '/remind' command instead (coming soon).",
+    });
 }
 ```
 
@@ -797,7 +818,7 @@ import { createLocalTools } from "../tools/index.ts";
 this.tools = createLocalTools({ awUrl: "http://127.0.0.1:5600" });
 
 // In handleChat
-for await (const event of this.bridge.runTurn({ 
+for await (const event of this.bridge.runTurn({
   messages: this.messages,
   tools: this.tools,  // Now includes local tools
 })) {
@@ -943,7 +964,7 @@ for await (const event of this.bridge.runTurn({
 
 ### Post-Slice Migration: Ink → OpenTUI
 
-**Status:** Done
+**Status:** Done (with open issue)
 
 The UI was migrated from Ink to [OpenTUI](https://opentui.com/) to enable proper fixed-viewport layout with a native scrollable transcript area. Key changes:
 
@@ -955,11 +976,25 @@ The UI was migrated from Ink to [OpenTUI](https://opentui.com/) to enable proper
 
 The `--no-ui` readline REPL remains fully functional under Node.js for environments without Bun.
 
+#### Open: Sticky fullscreen / transcript scroll (UNSOLVED)
+
+**Status:** Unsolved
+
+The OpenTUI session still does not reliably own a sticky alternate-screen viewport. Users can scroll the host terminal and see prior shell scrollback “behind” jerry-term, and the in-app transcript `scrollbox` does not receive wheel scroll reliably because the terminal steals it.
+
+Attempted mitigations (still insufficient):
+
+- Force `screenMode: "alternate-screen"` and `OTUI_USE_ALTERNATE_SCREEN=true`
+- Hard-size layout from `useTerminalDimensions` with `minHeight: 0` / `overflow: "hidden"`
+- Sticky bottom `scrollbox` + PgUp/PgDn / Shift+↑↓ transcript scrolling
+
+**Follow-up:** Revisit OpenTUI screen-mode + mouse capture (and iTerm2 alternate-screen settings) until the TUI is fullscreen-sticky and only the center transcript scrolls.
+
 ---
 
 ## Slice 6: Observability Panels
 
-**Status:** Not started
+**Status:** Done
 
 **Goal:** Add real-time visibility into Jerry's internal processes, tool execution, and thinking steps using terminal-native visual patterns from the [CLI UI design guidelines](https://github.com/davila7/claude-code-templates/blob/main/cli-tool/components/agents/development-team/cli-ui-designer.md).
 
@@ -1042,6 +1077,7 @@ The `--no-ui` readline REPL remains fully functional under Node.js for environme
 ```
 
 Tree characters:
+
 - `├─` Branch with siblings below
 - `└─` Last branch (no siblings below)
 - `│` Vertical continuation
@@ -1049,21 +1085,21 @@ Tree characters:
 
 **Status Indicators (with colors):**
 
-| Icon | Status | Color | Description |
-|------|--------|-------|-------------|
-| `⏳` | Running | `info` (#3b82f6) | Currently executing |
-| `✓` | Success | `success` (#10b981) | Completed successfully |
-| `⚠` | Warning | `warning` (#f59e0b) | Completed with issues |
-| `✗` | Error | `error` (#ef4444) | Failed |
-| `○` | Pending | `textMuted` (#606060) | Queued, not started |
+| Icon | Status  | Color                 | Description            |
+| ---- | ------- | --------------------- | ---------------------- |
+| `⏳` | Running | `info` (#3b82f6)      | Currently executing    |
+| `✓`  | Success | `success` (#10b981)   | Completed successfully |
+| `⚠`  | Warning | `warning` (#f59e0b)   | Completed with issues  |
+| `✗`  | Error   | `error` (#ef4444)     | Failed                 |
+| `○`  | Pending | `textMuted` (#606060) | Queued, not started    |
 
 **Latency Color Coding:**
 
 ```typescript
 const getLatencyColor = (ms: number) => {
-  if (ms < 500) return "success";   // Fast: green
-  if (ms < 2000) return "warning";  // Moderate: yellow
-  return "error";                    // Slow: red
+    if (ms < 500) return "success"; // Fast: green
+    if (ms < 2000) return "warning"; // Moderate: yellow
+    return "error"; // Slow: red
 };
 ```
 
@@ -1098,13 +1134,13 @@ const getLatencyColor = (ms: number) => {
 
 **Keyboard Shortcuts:**
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+T` | Toggle Tools panel |
-| `Ctrl+K` | Toggle Thinking panel |
+| Shortcut | Action                           |
+| -------- | -------------------------------- |
+| `Ctrl+T` | Toggle Tools panel               |
+| `Ctrl+K` | Toggle Thinking panel            |
 | `Ctrl+E` | Expand/collapse all tool outputs |
-| `Tab` | Cycle focus between panels |
-| `Enter` | Expand focused tool output |
+| `Tab`    | Cycle focus between panels       |
+| `Enter`  | Expand focused tool output       |
 
 **Acceptance:**
 
@@ -1119,16 +1155,16 @@ const getLatencyColor = (ms: number) => {
 
 **PR checklist:**
 
-- [ ] ThinkingPanel with spinner animation
-- [ ] ToolPanel with tree structure
-- [ ] ToolCallItem with status icons and timing
-- [ ] TreeView component for nested display
-- [ ] CollapsibleSection with keyboard toggle
-- [ ] Latency color coding implemented
-- [ ] Tool output truncation with expand
-- [ ] Keyboard shortcuts working
-- [ ] Auto-scroll behavior
-- [ ] Unit tests for observability hooks
+- [x] ThinkingPanel with spinner animation
+- [x] ToolPanel with tree structure
+- [x] ToolCallItem with status icons and timing
+- [x] TreeView component for nested display
+- [x] CollapsibleSection with keyboard toggle
+- [x] Latency color coding implemented
+- [x] Tool output truncation with expand
+- [x] Keyboard shortcuts working
+- [x] Auto-scroll behavior
+- [x] Unit tests for observability hooks
 
 ---
 
@@ -1148,7 +1184,7 @@ const getLatencyColor = (ms: number) => {
 
 **Tasks:**
 
-- Complete README with installation, usage, and examples
+- woComplete README with installation, usage, and examples
 - Add CLI argument parsing (`--version`, `--help`, `--runtime`, `--verbose`)
 - Create user guide documentation
 - Set up npm publish workflow (manual trigger; uses org `NPM_TOKEN` secret — not a personal token)
@@ -1307,16 +1343,16 @@ packages/jerry-term/
 
 ## Slice Summary
 
-| Slice               | Goal                 | Est. Files | Key Deliverable             |
-| ------------------- | -------------------- | ---------- | --------------------------- |
-| 1. Project Scaffold | Build setup          | 6          | Bundled package that builds |
-| 2. Bridge Layer     | Jerry abstraction    | 4          | JerryBridge class           |
-| 3. Health Checks    | Diagnostics          | 8          | `/health` command           |
-| 4. Basic REPL       | Core interaction     | 11         | Working CLI with commands   |
-| 4.5. Local Tools    | Tool enablement      | 6          | summarize_activity via AW HTTP |
-| 5. Ink UI           | Rich terminal + theme| 12         | Full-screen UI with design system |
-| 6. Observability    | Real-time visibility | 7          | Tool/thinking panels with tree view |
-| 7. Polish & Publish | Ship it              | 5          | Pack-ready PR + owner npm publish |
+| Slice               | Goal                  | Est. Files | Key Deliverable                     |
+| ------------------- | --------------------- | ---------- | ----------------------------------- |
+| 1. Project Scaffold | Build setup           | 6          | Bundled package that builds         |
+| 2. Bridge Layer     | Jerry abstraction     | 4          | JerryBridge class                   |
+| 3. Health Checks    | Diagnostics           | 8          | `/health` command                   |
+| 4. Basic REPL       | Core interaction      | 11         | Working CLI with commands           |
+| 4.5. Local Tools    | Tool enablement       | 6          | summarize_activity via AW HTTP      |
+| 5. Ink UI           | Rich terminal + theme | 12         | Full-screen UI with design system   |
+| 6. Observability    | Real-time visibility  | 7          | Tool/thinking panels with tree view |
+| 7. Polish & Publish | Ship it               | 5          | Pack-ready PR + owner npm publish   |
 
 ---
 

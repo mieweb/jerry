@@ -131,6 +131,57 @@ Add to Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`):
 
 Full setup, HTTP transport, and limitations: [docs/mcp-server.md](docs/mcp-server.md). Command reference: [docs/manual.md §18](docs/manual.md#18-phase-2-slice-3--mcp-expose).
 
+### jerry-term: Interactive Terminal UI
+
+`jerry-term` is a standalone CLI with an OpenTUI-based terminal UI. It bundles all Jerry packages and works without running the worker.
+
+```bash
+# Development mode (from repo root)
+pnpm --filter jerry-term dev
+
+# Or when published:
+npm i -g jerry-term
+jerry-term
+```
+
+**UI Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ ● jerry-term v0.1.0                  [local] ollama:qwen2.5:3b  │
+├─────────────────────────────────────────────────────────────────┤
+│ Based on your ActivityWatch data, you spent most of your time  │
+│ in VS Code working on the jerry-term project...                │
+├─────────────────────────────────────────────────────────────────┤
+│ > _                                                             │
+├─────────────────────────────────────────────────────────────────┤
+│ ● Connected • Last: 2.3s • Tools: 6                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Built-in Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/runtime <local\|ozwell\|byo-cloud>` | Switch runtime backend |
+| `/health` | Run system health checks |
+| `/aw-tail [limit] [bucket]` | Peek latest ActivityWatch events |
+| `/config [key] [value]` | View or update configuration |
+| `/help` | Show available commands |
+| `/exit` | Exit the CLI |
+
+**Keyboard Shortcuts:**
+
+- `↑`/`↓` — Command history
+- `Ctrl+L` — Clear transcript
+- `Ctrl+C` — Cancel turn or exit
+
+**Environment Variables:**
+
+Same as the main CLI (`JERRY_RUNTIME`, `JERRY_MODEL`, `OZWELL_API_KEY`, etc.). jerry-term also reads config from `~/.config/jerry-term/config.json`.
+
+Full documentation: [`packages/jerry-term/README.md`](packages/jerry-term/README.md)
+
 ---
 
 ## Development
@@ -171,6 +222,7 @@ See [plan.md §6](plan.md) for architecture details.
 ```
 packages/
   jerry-app/     # Worker: fetch/queue/scheduled + AgentSession DO
+  jerry-term/    # Standalone terminal CLI with OpenTUI UI
   tools/         # AW aggregation, footnote, file tools
   collector/     # Local sidecar: folder watch + AW poll
   cli/           # Message-first CLI (jerry binary)

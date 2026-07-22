@@ -4,7 +4,15 @@
  * Wraps process.stdout with helpers for text output and streaming.
  */
 
-export class OutputWriter {
+export interface IOutputWriter {
+  write(text: string): void;
+  writeLine(text: string): void;
+  streamText(delta: string): void;
+  newLine(): void;
+  clear(): void;
+}
+
+export class OutputWriter implements IOutputWriter {
   private stream: NodeJS.WriteStream;
 
   constructor(stream: NodeJS.WriteStream = process.stdout) {
