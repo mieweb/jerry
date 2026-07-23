@@ -12,6 +12,7 @@ import type { TranscriptLine } from "../components/ResponseArea.tsx";
 import { createLocalTools } from "../../tools/index.ts";
 import type { IOutputWriter } from "../../repl/output.ts";
 import { useObservability, type UseObservabilityResult } from "./useObservability.ts";
+import { getWelcomeLines } from "../../welcome/index.ts";
 
 const COMMAND_REGEX = /^\/(\S+)\s*(.*)/;
 
@@ -47,7 +48,9 @@ export function useRepl(
   openPicker?: (options: OpenPickerOptions) => void
 ): UseReplResult {
   const [inputValue, setInputValue] = useState("");
-  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [transcript, setTranscript] = useState<TranscriptLine[]>(() =>
+    getWelcomeLines(config)
+  );
   const [streamingContent, setStreamingContent] = useState("");
   const [busy, setBusy] = useState(false);
   const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);

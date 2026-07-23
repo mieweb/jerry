@@ -7,7 +7,6 @@ import type { RuntimeKind } from "@mieweb/jerry-agent-runtime";
 import type { ByoProviderId } from "./types.ts";
 import { listOpenAIModels } from "./list-openai-models.ts";
 import { listAnthropicModels } from "./list-anthropic-models.ts";
-import { listOzwellModels } from "./list-ozwell-models.ts";
 
 export interface ValidateCredentialsResult {
   valid: boolean;

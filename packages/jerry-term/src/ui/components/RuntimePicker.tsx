@@ -1314,7 +1314,9 @@ export function RuntimePicker({
 }: RuntimePickerProps): React.ReactNode {
   if (!state.isOpen) return null;
 
-  const provider = getProviderForRuntime(state.runtime, state.provider);
+  const provider = state.runtime
+    ? getProviderForRuntime(state.runtime, state.provider)
+    : undefined;
 
   if (state.setupMode) {
     const needsBaseURL = state.provider === "custom";
@@ -1347,8 +1349,7 @@ export function RuntimePicker({
             focused={!needsBaseURL || state.setupBaseURL !== ""}
             value={state.setupApiKey}
             onInput={onApiKeyInput}
-            style={{ flexGrow: 1, fg: colors.textPrimary }}
-            mask="*"
+            style={{ flexGrow: 1 }}
           />
         </box>
         {needsBaseURL && (
@@ -1358,7 +1359,7 @@ export function RuntimePicker({
               focused={state.setupBaseURL === ""}
               value={state.setupBaseURL}
               onInput={onBaseURLInput}
-              style={{ flexGrow: 1, fg: colors.textPrimary }}
+              style={{ flexGrow: 1 }}
               placeholder="https://..."
             />
           </box>

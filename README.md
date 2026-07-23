@@ -28,6 +28,8 @@ Verify the worker: `curl http://localhost:8787/health`
 
 See [docs/chats/chat8 - running_the_program.md](docs/chats/chat8%20-%20running_the_program.md) for troubleshooting (model selection, tool errors, session resume).
 
+## **📚 New to jerry-term?** See the [full jerry-term documentation](packages/jerry-term/README.md) for the standalone interactive CLI to test Jerry features
+
 ### Runtime backends (`local` / `ozwell` / `byo-cloud`)
 
 Jerry keeps the same tool loop (ActivityWatch, search, etc.) for all three. Only the **model endpoint** changes. Set profile via env vars (or `.jerry.json`).
@@ -90,15 +92,15 @@ JERRY_RUNTIME=byo-cloud \
 
 `JERRY_API_KEY` works as an alternative to `OPENAI_API_KEY`.
 
-| Variable | Used by | Purpose |
-| -------- | ------- | ------- |
-| `JERRY_RUNTIME` | all | `local` \| `ozwell` \| `byo-cloud` |
-| `JERRY_MODEL` | all | Model ref (`ollama:…`, Ozwell id, or `https://…#model`) |
-| `JERRY_EGRESS` | all | `deny` \| `allow-model` \| `allow-tools` (cloud runtimes auto-upgrade `deny` → `allow-model`) |
-| `OZWELL_API_KEY` | ozwell | Parent key (`ozw_…`) — preferred |
-| `OZWELL_AGENT_KEY` | ozwell | Agent key (`agnt_key-`) — not recommended for Jerry tools |
-| `OZWELL_ENDPOINT` | ozwell | Default Manager host if unset |
-| `OPENAI_API_KEY` / `JERRY_API_KEY` | byo-cloud | API key for your endpoint |
+| Variable                           | Used by   | Purpose                                                                                       |
+| ---------------------------------- | --------- | --------------------------------------------------------------------------------------------- |
+| `JERRY_RUNTIME`                    | all       | `local` \| `ozwell` \| `byo-cloud`                                                            |
+| `JERRY_MODEL`                      | all       | Model ref (`ollama:…`, Ozwell id, or `https://…#model`)                                       |
+| `JERRY_EGRESS`                     | all       | `deny` \| `allow-model` \| `allow-tools` (cloud runtimes auto-upgrade `deny` → `allow-model`) |
+| `OZWELL_API_KEY`                   | ozwell    | Parent key (`ozw_…`) — preferred                                                              |
+| `OZWELL_AGENT_KEY`                 | ozwell    | Agent key (`agnt_key-`) — not recommended for Jerry tools                                     |
+| `OZWELL_ENDPOINT`                  | ozwell    | Default Manager host if unset                                                                 |
+| `OPENAI_API_KEY` / `JERRY_API_KEY` | byo-cloud | API key for your endpoint                                                                     |
 
 Package-level API details: [`packages/agent-runtime/README.md`](packages/agent-runtime/README.md). Phase 2 Slice 4 notes: [`docs/plans/phase-2.md`](docs/plans/phase-2.md).
 
@@ -119,13 +121,13 @@ Add to Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`):
 
 ```json
 {
-  "mcpServers": {
-    "jerry": {
-      "command": "node",
-      "args": ["packages/cli/bin/jerry-mcp.js"],
-      "env": { "JERRY_URL": "http://127.0.0.1:8787" }
+    "mcpServers": {
+        "jerry": {
+            "command": "node",
+            "args": ["packages/cli/bin/jerry-mcp.js"],
+            "env": { "JERRY_URL": "http://127.0.0.1:8787" }
+        }
     }
-  }
 }
 ```
 
@@ -161,14 +163,14 @@ jerry-term
 
 **Built-in Commands:**
 
-| Command | Description |
-|---------|-------------|
-| `/runtime <local\|ozwell\|byo-cloud>` | Switch runtime backend |
-| `/health` | Run system health checks |
-| `/aw-tail [limit] [bucket]` | Peek latest ActivityWatch events |
-| `/config [key] [value]` | View or update configuration |
-| `/help` | Show available commands |
-| `/exit` | Exit the CLI |
+| Command                               | Description                      |
+| ------------------------------------- | -------------------------------- |
+| `/runtime <local\|ozwell\|byo-cloud>` | Switch runtime backend           |
+| `/health`                             | Run system health checks         |
+| `/aw-tail [limit] [bucket]`           | Peek latest ActivityWatch events |
+| `/config [key] [value]`               | View or update configuration     |
+| `/help`                               | Show available commands          |
+| `/exit`                               | Exit the CLI                     |
 
 **Keyboard Shortcuts:**
 
@@ -412,7 +414,7 @@ A small service (could be a Node/Fastify app since Ozwell ecosystem is already N
 
 ### **C. Ozwell “Jerry” Agent (interpretation layer)**
 
-- Receives the Daily Context Document as structured input  
+- Receives the Daily Context Document as structured input
 
 - Uses a consistent rubric to produce:
     - value narrative
@@ -494,9 +496,9 @@ Jerry should be constrained by a rubric so it doesn’t become a generic summari
 - “Value narrative” in org language:
     - impact framing, tradeoffs, risks retired, options explored
 
-- “Manager bullets” (copy/paste)  
+- “Manager bullets” (copy/paste)
 
-- “Evidence appendix” (defensible mapping back to signals)  
+- “Evidence appendix” (defensible mapping back to signals)
 
 - “Follow-ups,” Jerry suggests:
     - things to document, people to update, risks to flag
@@ -514,9 +516,9 @@ TimeHarbor explicitly emphasizes “private by default” and user-controlled sh
 
 So implement privacy as a **policy engine** inside Jerry Ingestion:
 
-- Local-only vs exportable fields  
+- Local-only vs exportable fields
 
-- Redaction rules (URLs, window titles, filenames)  
+- Redaction rules (URLs, window titles, filenames)
 
 - “Share modes”:
     1. **Private journal** (full fidelity, local)
@@ -566,8 +568,7 @@ So implement privacy as a **policy engine** inside Jerry Ingestion:
 
 ### **Services**
 
-1. **Jerry Ingestion API (Node/Fastify)**  
-
+1. **Jerry Ingestion API (Node/Fastify)**
 
 - Endpoints:
     - `POST /jerry/daily/build` (build context doc for date range)

@@ -14,7 +14,6 @@ import type {
   TermConfigFile,
   ByoProviderId,
   CredentialsVault,
-  LastModelMap,
 } from "./types.ts";
 import { getActiveApiKey, getActiveEndpoint } from "./types.ts";
 
@@ -25,7 +24,16 @@ const DEFAULT_CONFIG: TermConfig = {
 
 const VALID_BYO_PROVIDERS: ByoProviderId[] = ["openai", "anthropic", "moonshot", "custom"];
 
+/**
+ * Get config file paths to check (lowest to highest precedence).
+ * If JERRY_TERM_CONFIG env var is set, use only that path.
+ * This enables tests to be hermetic and supports --config CLI flag.
+ */
 function getConfigPaths(): string[] {
+  const overridePath = process.env.JERRY_TERM_CONFIG;
+  if (overridePath) {
+    return [overridePath];
+  }
   const home = homedir();
   return [
     join(process.cwd(), ".jerry-term.json"),

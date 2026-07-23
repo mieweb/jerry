@@ -1229,34 +1229,34 @@ const getLatencyColor = (ms: number) => {
 **Key features:**
 
 1. **Credentials vault** - `~/.config/jerry-term/config.json` now stores multiple API keys:
-   - `credentials.ozwell.apiKey` - Ozwell API key
-   - `credentials.byo.openai.apiKey` - OpenAI key
-   - `credentials.byo.moonshot.apiKey` - Moonshot/Kimi key
-   - `credentials.byo.custom.apiKey` + `baseURL` - Custom provider
+    - `credentials.ozwell.apiKey` - Ozwell API key
+    - `credentials.byo.openai.apiKey` - OpenAI key
+    - `credentials.byo.moonshot.apiKey` - Moonshot/Kimi key
+    - `credentials.byo.custom.apiKey` + `baseURL` - Custom provider
 
 2. **Last model memory** - Remembers last-used model per runtime/provider:
-   - `lastModel.local` - Last Ollama model
-   - `lastModel.ozwell` - Last Ozwell model
-   - `lastModel.byo.openai` - Last OpenAI model, etc.
+    - `lastModel.local` - Last Ollama model
+    - `lastModel.ozwell` - Last Ozwell model
+    - `lastModel.byo.openai` - Last OpenAI model, etc.
 
 3. **Provider registry** - Static definitions with curated model lists:
-   - `ollama` (local) - Live from `/api/tags`
-   - `ozwell` - Recommended chat models first (`gpt-4.1-mini`, `gpt-4o`, `gpt-5`, `claude-sonnet-5`, …); live `/v1/models` with collapsible “Other”
-   - `openai` (BYO) - GPT-4o, GPT-4 Turbo, o1-preview, etc.
-   - `moonshot` (BYO) - Moonshot v1 8K/32K/128K
-   - `custom` (BYO) - User-defined baseURL + model
+    - `ollama` (local) - Live from `/api/tags`
+    - `ozwell` - Recommended chat models first (`gpt-4.1-mini`, `gpt-4o`, `gpt-5`, `claude-sonnet-5`, …); live `/v1/models` with collapsible “Other”
+    - `openai` (BYO) - GPT-4o, GPT-4 Turbo, o1-preview, etc.
+    - `moonshot` (BYO) - Moonshot v1 8K/32K/128K
+    - `custom` (BYO) - User-defined baseURL + model
 
 4. **Interactive picker** - TUI tree navigation:
-   - `/runtime` or `/rt` opens picker (no args)
-   - `/model` or `/m` opens model picker for current runtime
-   - ↑↓ navigate, Enter/→ select, Esc/← back
-   - Setup leaf for entering API keys with docs link
-   - Ozwell: recommended models first; `▶ Other models (N)` expands/collapses the rest
+    - `/runtime` or `/rt` opens picker (no args)
+    - `/model` or `/m` opens model picker for current runtime
+    - ↑↓ navigate, Enter/→ select, Esc/← back
+    - Setup leaf for entering API keys with docs link
+    - Ozwell: recommended models first; `▶ Other models (N)` expands/collapses the rest
 
 5. **Commands enhanced:**
-   - `/runtime byo openai` - Direct switch with saved credentials
-   - `/model gpt-4o` - Set model, persists to lastModel
-   - `/config apiKey <key>` - Routes to active credential slot
+    - `/runtime byo openai` - Direct switch with saved credentials
+    - `/model gpt-4o` - Set model, persists to lastModel
+    - `/config apiKey <key>` - Routes to active credential slot
 
 **Files:**
 
@@ -1294,30 +1294,53 @@ const getLatencyColor = (ms: number) => {
 
 ## Slice 7: Polish and Publish
 
-**Status:** Not started
+**Status:** Planned — ready to start (gated on the pre-publish green gate below)
 
 **Goal:** Final polish, documentation, and ship-ready npm packaging. Collaborators prove installability in the PR; the **org/repo owner** performs the real registry publish.
 
+**What changed since this slice was drafted (Slices 6 → 6.6.1):**
+
+The publish surface grew well beyond the original REPL. Slice 7 must ship and document all of it:
+
+- **Four runtime backends** now exist (agent-runtime `resolveRuntime`): `local` (Ollama), `byo-cloud` (OpenAI-compatible), `ozwell` (Managed), and native `anthropic` (`@ai-sdk/anthropic`). `RuntimeKind` is `local | byo-cloud | ozwell | anthropic`.
+- **Credentials vault** persisted to `~/.config/jerry-term/config.json` (`credentials.ozwell`, `credentials.byo.{openai,anthropic,moonshot,custom}`) plus `lastModel` memory per runtime/provider.
+- **Interactive tree picker** (`RuntimePicker.tsx`) driven by `/runtime` (`/rt`) and `/model` (`/m`); live model listing for Ollama, Ozwell, OpenAI, and Anthropic with curated fallbacks.
+- **New/expanded commands:** `/model`, `/config clearKey [ozwell|openai|anthropic]`, `/config apiKey` routes to the active credential slot, masked-key display (`sk-pr****abcd`) everywhere.
+- **New source files** that now form the shipped surface: `config/providers.ts`, `config/select.ts`, `config/list-{ozwell,openai,anthropic}-models.ts`, `config/mask.ts`, `config/validate-credentials.ts`, `commands/model.ts`, `commands/apply-config.ts`, `ui/components/{RuntimePicker,CommandDropdown}.tsx`.
+- **New dependency:** `@ai-sdk/anthropic` (in `@mieweb/jerry-agent-runtime`).
+
+**⚠️ Pre-publish green gate (blockers — must be fixed first):**
+
+The branch is currently red; `npm publish --dry-run` cannot pass until these are green, because `prepublishOnly` runs `pnpm build`:
+
+- [x] **`pnpm build` fails (DTS):** Fixed by removing unused `LastModelMap` import. `dist/index.d.ts` now emits correctly.
+- [x] **`pnpm typecheck` fails (7 errors):** Fixed unused vars and `RuntimePicker.tsx` type errors (guarded undefined runtime, removed invalid `fg`/`mask` props).
+- [x] **`pnpm test` fails (2 / 240):** `config.test.ts` "returns a valid runtime" and "ignores invalid runtime values from env" — root cause was non-hermetic tests (reading real `~/.config/jerry-term/config.json`) combined with stale allowed-runtime lists missing `anthropic`. Fixed by adding `JERRY_TERM_CONFIG` env override to loader and updating test assertions.
+- [x] Confirm `pnpm build && pnpm typecheck && pnpm test` all pass and `dist/index.d.ts` is emitted before any dry-run.
+
 **Files:**
 
-- `packages/jerry-term/README.md` (complete)
+- `packages/jerry-term/README.md` (complete — cover all four runtimes, vault, picker, `/model`, `/config clearKey`)
 - `packages/jerry-term/CHANGELOG.md`
-- `packages/jerry-term/src/cli.ts` (CLI argument parsing)
+- `packages/jerry-term/src/cli.ts` (CLI argument parsing — extract from inline handling in `index.ts`)
+- `packages/jerry-term/src/config/loader.ts` (runtime validation fix)
+- `packages/jerry-term/src/config/loader.ts`, `RuntimePicker.tsx` (typecheck/build fixes)
 - `docs/jerry-term.md` (user guide)
 - `.github/workflows/publish-jerry-term.yml`
 
 **Tasks:**
 
-- Complete README with installation, usage, and examples
-- Add CLI argument parsing (`--version`, `--help`, `--runtime`, `--verbose`)
-- Create user guide documentation
+- Clear the pre-publish green gate above (build + typecheck + tests green; `.d.ts` emitted)
+- Complete README: installation, usage, all four runtimes (local/ozwell/byo-cloud/anthropic), credentials vault + masked keys, tree picker keys (↑↓ / Enter→ / Esc←), `/model`, `/config clearKey`, live model listing, provider setup links (Ozwell + Anthropic + OpenAI)
+- Add CLI argument parsing in `src/cli.ts` covering `-v/--version`, `-h/--help`, `-r/--runtime`, `--model`, `--verbose`, `--no-ui`, `--health`, `--config`, and a one-shot `[message]`; reconcile with the current inline `index.ts` handling (which only does `--version/-V`, `--health/-H`, `--no-ui` and ignores a positional message)
+- Create user guide documentation (`docs/jerry-term.md`) including multi-provider setup and the picker workflow
 - Set up npm publish workflow (manual trigger; uses org `NPM_TOKEN` secret — not a personal token)
 - Test publish dry-run: `npm publish --dry-run`
 - Prove local install path for PR demo: `npm pack` → `npm i -g ./jerry-term-*.tgz`
 - Attach or link a short screen recording in the PR showing dry-run + local global install + CLI smoke test
 - Verify Bun compatibility: `bun x jerry-term`
-- Add CHANGELOG for version tracking
-- Final QA pass on all features (include known open issue: sticky TUI / transcript scroll)
+- Add CHANGELOG capturing Slices 5–6.6.1 (OpenTUI UI, observability panels, config fidelity, credentials vault, tree picker, Anthropic runtime, live model listing, masked keys) for the `0.1.0` line
+- Final QA pass on all features and all four runtimes (include known open issues: sticky TUI / transcript scroll; Ozwell model↔Jerry compatibility from 6.6)
 - After merge: owner publishes (CLI or workflow) under MIEWEB npm ownership; do **not** publish from a collaborator personal account
 
 **CLI Arguments:**
@@ -1328,7 +1351,9 @@ jerry-term [options] [message]
 Options:
   -v, --version          Show version
   -h, --help             Show help
-  -r, --runtime <kind>   Set initial runtime (local|ozwell|byo-cloud)
+  -r, --runtime <kind>   Set initial runtime (local|ozwell|byo-cloud|anthropic)
+  --model <id>           Set initial model for the chosen runtime
+  -H, --health           Run health diagnostics and exit
   --verbose              Enable debug output
   --no-ui                Use basic REPL instead of OpenTUI UI
   --config <path>        Custom config file path
@@ -1337,31 +1362,35 @@ Examples:
   jerry-term                          # Start interactive REPL
   jerry-term "summarize my day"       # One-shot query
   jerry-term -r ozwell                # Start with Ozwell runtime
+  jerry-term -r anthropic --model claude-sonnet-4-20250514
+  jerry-term --health                 # Diagnostics only
   jerry-term --no-ui                  # Basic mode (no OpenTUI)
 ```
 
 **Acceptance:**
 
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` all pass; `dist/index.d.ts` is emitted
 - `npm publish --dry-run` succeeds without errors
 - Local global install works: `npm pack` + `npm i -g ./jerry-term-*.tgz` (stand-in for registry until owner publishes)
 - PR includes demo notes and/or short video of local install for owner review
-- `jerry-term --help` shows usage
+- `jerry-term --help` shows usage (incl. all four runtimes)
 - `jerry-term "hello"` runs one-shot query
 - `bun x jerry-term` works (Bun compatibility)
-- README provides complete quickstart
+- README + `docs/jerry-term.md` document all four runtimes, the credentials vault, masked keys, and the tree picker
 - Owner publishes to npm (or approves/triggers publish workflow); `npm i -g jerry-term` works on a clean machine afterward
 
 **PR checklist:**
 
-- [ ] README complete with examples
-- [ ] CLI argument parsing implemented
-- [ ] User guide in docs/
+- [ ] Pre-publish green gate cleared (build + typecheck + tests green; `.d.ts` emitted)
+- [ ] README complete with examples and all four runtimes + vault + picker
+- [ ] CLI argument parsing implemented in `src/cli.ts` (incl. `--model`, `-r anthropic`, one-shot message)
+- [ ] User guide in docs/ (multi-provider setup + picker workflow)
 - [ ] Publish workflow created (manual; org `NPM_TOKEN`)
 - [ ] Dry-run publish succeeds
 - [ ] Local pack install demo documented (and optional video attached)
 - [ ] Bun compatibility verified
-- [ ] CHANGELOG created
-- [ ] Final QA completed
+- [ ] CHANGELOG created (covers Slices 5–6.6.1)
+- [ ] Final QA completed across all four runtimes
 - [ ] PR explicitly asks owner to publish — collaborator does **not** `npm publish` from a personal account
 
 ---
@@ -1477,7 +1506,9 @@ packages/jerry-term/
 | 5. Ink UI            | Rich terminal + theme | 12         | Full-screen UI with design system   |
 | 6. Observability     | Real-time visibility  | 7          | Tool/thinking panels with tree view |
 | 6.5. Config Fidelity | Ozwell / OpenAI BYO   | 6          | `/config` + `/runtime` drive bridge |
-| 7. Polish & Publish  | Ship it               | 5          | Pack-ready PR + owner npm publish   |
+| 6.6. Runtime Picker  | Vault + tree picker   | 9          | `/runtime` + `/model` picker, vault |
+| 6.6.1. BYO Live      | OpenAI/Anthropic BYO  | 6          | Anthropic runtime, live models, masked keys |
+| 7. Polish & Publish  | Ship it               | 7          | Green gate + pack-ready PR + owner publish |
 
 ---
 
@@ -1485,8 +1516,9 @@ packages/jerry-term/
 
 - Local install path proven in Slice 7 PR (`npm pack` / dry-run); owner then publishes under MIEWEB
 - `npm i -g jerry-term` installs successfully on clean machine (after owner publish)
-- `jerry-term` starts interactive REPL with Ink UI
-- `/runtime local|ozwell|byo-cloud` switches backend dynamically
+- `jerry-term` starts interactive REPL with OpenTUI UI
+- `/runtime local|ozwell|byo-cloud|anthropic` switches backend dynamically (tree picker + saved-credential vault)
+- `/model` switches model for the active runtime (live listing with curated fallback)
 - `/health` shows status of Ollama, ActivityWatch, Footnote, MCP tools
 - Tool execution visible in real-time with timing
 - `jerry-term "summarize my day"` works as one-shot query

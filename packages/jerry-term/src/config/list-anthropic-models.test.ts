@@ -86,7 +86,7 @@ describe("listAnthropicModels", () => {
   });
 
   it("sends correct headers including anthropic-version", async () => {
-    const mockFetch = mock.fn(async (url: string, opts: RequestInit) => {
+    const mockFetch = mock.fn(async (_url: string, opts: RequestInit) => {
       const headers = opts.headers as Record<string, string>;
       assert.equal(headers["x-api-key"], "sk-ant-test");
       assert.equal(headers["anthropic-version"], "2023-06-01");

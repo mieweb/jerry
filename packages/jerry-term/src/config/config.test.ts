@@ -48,15 +48,17 @@ describe("Config Loader", () => {
     delete process.env.OZWELL_AGENT_KEY;
     delete process.env.OZWELL_ENDPOINT;
     delete process.env.OPENAI_API_KEY;
+    // Point to nonexistent path to isolate from real user config
+    process.env.JERRY_TERM_CONFIG = "/tmp/jerry-term-test-nonexistent/config.json";
   });
 
   afterEach(() => {
     process.env = { ...originalEnv };
   });
 
-  it("returns a valid runtime (local, ozwell, or byo-cloud)", () => {
+  it("returns a valid runtime (local, ozwell, byo-cloud, or anthropic)", () => {
     const config = loadTermConfig();
-    assert.ok(["local", "ozwell", "byo-cloud"].includes(config.runtime));
+    assert.ok(["local", "ozwell", "byo-cloud", "anthropic"].includes(config.runtime));
     assert.ok(config.model.length > 0);
   });
 
@@ -101,7 +103,7 @@ describe("Config Loader", () => {
   it("ignores invalid runtime values from env", () => {
     process.env.JERRY_RUNTIME = "invalid";
     const config = loadTermConfig();
-    assert.ok(["local", "ozwell", "byo-cloud"].includes(config.runtime));
+    assert.ok(["local", "ozwell", "byo-cloud", "anthropic"].includes(config.runtime));
     assert.notEqual(config.runtime, "invalid");
   });
 });

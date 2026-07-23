@@ -9,6 +9,7 @@ import type { CommandRegistry, CommandContext } from "../commands/index.ts";
 import { InputReader } from "./input.ts";
 import { OutputWriter } from "./output.ts";
 import { createLocalTools } from "../tools/index.ts";
+import { getWelcomeMessage } from "../welcome/index.ts";
 
 const COMMAND_REGEX = /^\/(\S+)\s*(.*)/;
 
@@ -44,9 +45,10 @@ export class Repl {
       this.stop();
     });
 
-    this.output.writeLine(`jerry-term v0.1.0`);
-    this.output.writeLine(`Runtime: ${this.config.runtime} | Model: ${this.config.model}`);
-    this.output.writeLine(`Type /help for commands, or chat with Jerry.`);
+    const welcomeLines = getWelcomeMessage(this.config);
+    for (const line of welcomeLines) {
+      this.output.writeLine(line);
+    }
     this.output.newLine();
 
     while (this.running) {
