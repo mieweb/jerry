@@ -40,7 +40,8 @@ function nextLineId(): string {
 
 export function useRepl(
   bridge: JerryBridge,
-  initialConfig: TermConfig,
+  config: TermConfig,
+  setConfig: (config: TermConfig) => void,
   registry: CommandRegistry,
   onExit: () => void,
   openPicker?: (options: OpenPickerOptions) => void
@@ -50,7 +51,6 @@ export function useRepl(
   const [streamingContent, setStreamingContent] = useState("");
   const [busy, setBusy] = useState(false);
   const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
-  const [config, setConfig] = useState(initialConfig);
 
   const messagesRef = useRef<CoreMessage[]>([]);
   const historyRef = useRef<string[]>([]);
@@ -105,6 +105,9 @@ export function useRepl(
     [addLine]
   );
 
+  const configRef = useRef(config);
+  configRef.current = config;
+
   const handleCommand = useCallback(
     async (name: string, argsStr: string) => {
       const command = registry.get(name);
@@ -117,11 +120,11 @@ export function useRepl(
       const args = argsStr.trim() ? argsStr.trim().split(/\s+/) : [];
       const ctx: CommandContext = {
         bridge,
-        config,
+        config: configRef.current,
         output: outputAdapter,
         exit: onExit,
         updateConfig: (updates) => {
-          setConfig((prev) => ({ ...prev, ...updates }));
+          setConfig({ ...configRef.current, ...updates });
         },
         openPicker,
       };
@@ -135,7 +138,7 @@ export function useRepl(
         );
       }
     },
-    [registry, bridge, config, outputAdapter, onExit, addLine, openPicker]
+    [registry, bridge, setConfig, outputAdapter, onExit, addLine, openPicker]
   );
 
   const handleChat = useCallback(

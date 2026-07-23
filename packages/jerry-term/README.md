@@ -190,33 +190,74 @@ JERRY_RUNTIME=ozwell \
 
 If Ozwell is unavailable, jerry-term falls back to local Ollama automatically.
 
-### 3. BYO-Cloud (Custom OpenAI-compatible endpoint)
+### 3. BYO Providers (OpenAI, Anthropic)
+
+jerry-term supports BYO (bring-your-own) API keys for OpenAI and Anthropic. Use the interactive picker or environment variables.
+
+#### OpenAI
+
+**Via interactive picker (recommended):**
+```bash
+# Start jerry-term, then use the runtime picker:
+> /runtime
+# Select "BYO-Cloud" → "OpenAI" → Enter your API key
+# Live models will be fetched from OpenAI and displayed
+```
 
 **Via environment variables:**
 ```bash
-JERRY_RUNTIME=byo-cloud \
-  JERRY_MODEL='https://api.openai.com/v1#gpt-4o' \
-  OPENAI_API_KEY=sk-... \
-  jerry-term
+OPENAI_API_KEY=sk-... jerry-term
+# Then switch via /runtime byo openai
 ```
 
-**Via interactive commands:**
+**API key resolution:** `OPENAI_API_KEY` > `JERRY_API_KEY` > config file
+
+#### Anthropic (Claude)
+
+**Via interactive picker (recommended):**
 ```bash
-# Start jerry-term, then:
-> /config apiKey sk-your_openai_key
-> /config model https://api.openai.com/v1#gpt-4o
-> /runtime byo-cloud
+> /runtime
+# Select "BYO-Cloud" → "Anthropic" → Enter your API key
+# Live models will be fetched from Anthropic and displayed
 ```
 
-**API key resolution order:** `JERRY_API_KEY` > `OPENAI_API_KEY` > config file
+**Via environment variables:**
+```bash
+ANTHROPIC_API_KEY=sk-ant-... jerry-term
+# Then switch via /runtime anthropic
+```
 
-**Model format:** Use `https://endpoint#model-name` to specify both endpoint and model, or set them separately with `/config endpoint` and `/config model`.
+**API key resolution:** `ANTHROPIC_API_KEY` > config file
+
+#### More providers coming soon
+
+The BYO picker shows OpenAI and Anthropic. Additional providers (Moonshot, custom endpoints) are planned for future releases.
+
+### Managing API Keys
+
+API keys are stored in `~/.config/jerry-term/config.json` in a credentials vault. Keys are displayed in masked format (`sk-pr****abcd`) for security.
+
+**Clear a saved key:**
+```bash
+> /config clearKey openai      # Remove OpenAI key
+> /config clearKey anthropic   # Remove Anthropic key
+> /config clearKey ozwell      # Remove Ozwell key
+> /config apiKey clear         # Remove key for active runtime
+```
+
+**Important:** If you clear the API key for your currently active provider (e.g., you're using BYO-Cloud with OpenAI and run `/config clearKey openai`), jerry-term will automatically switch to local runtime with the default Ollama model to prevent "no API key" errors.
+
+**View current config (with masked keys):**
+```bash
+> /config
+# Shows: apiKey: sk-pr****abcd
+```
 
 ## Environment Variables
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `JERRY_RUNTIME` | Runtime backend | `local`, `ozwell`, `byo-cloud` |
+| `JERRY_RUNTIME` | Runtime backend | `local`, `ozwell`, `byo-cloud`, `anthropic` |
 | `JERRY_MODEL` | Model identifier | `ollama:qwen2.5:3b`, `gpt-4.1-mini` |
 | `JERRY_API_KEY` | Generic API key (all runtimes) | `ozw_...`, `sk-...` |
 | `JERRY_ENDPOINT` | Custom API endpoint (overrides all) | `https://...` |
@@ -224,7 +265,8 @@ JERRY_RUNTIME=byo-cloud \
 | `OZWELL_API_KEY` | Ozwell API key | `ozw_...` |
 | `OZWELL_AGENT_KEY` | Ozwell agent key (alternative) | `ozw_...` |
 | `OZWELL_ENDPOINT` | Ozwell API endpoint | `https://ozwellapi.os.mieweb.org` |
-| `OPENAI_API_KEY` | OpenAI/BYO-cloud API key | `sk-...` |
+| `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic (Claude) API key | `sk-ant-...` |
 
 **Priority:** Environment variables override config file settings. Config file values are used as fallbacks.
 

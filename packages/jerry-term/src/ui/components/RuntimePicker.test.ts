@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildModelNodes,
   buildRuntimeNodes,
+  buildProviderNodes,
   OZWELL_OTHER_TOGGLE_ID,
 } from "./RuntimePicker.tsx";
 import type { TermConfig } from "../../config/index.ts";
@@ -136,5 +137,41 @@ describe("RuntimePicker helpers", () => {
     const local = nodes.find((n) => n.runtime === "local");
     assert.ok(local);
     assert.equal(local.description, "Ollama unavailable");
+  });
+
+  it("buildRuntimeNodes never marks byo-cloud as needsSetup", () => {
+    const nodes = buildRuntimeNodes(baseConfig);
+    const byo = nodes.find((n) => n.runtime === "byo-cloud");
+    assert.ok(byo);
+    assert.equal(byo.needsSetup, false);
+    assert.equal(byo.label, "BYO Cloud");
+  });
+
+  it("buildProviderNodes lists OpenAI, Anthropic, and more-coming-soon", () => {
+    const nodes = buildProviderNodes(baseConfig);
+    assert.equal(nodes.length, 3);
+    assert.equal(nodes[0].id, "openai");
+    assert.equal(nodes[0].needsSetup, true);
+    assert.equal(nodes[0].description, "needs setup");
+    assert.equal(nodes[1].id, "anthropic");
+    assert.equal(nodes[1].needsSetup, true);
+    assert.equal(nodes[1].runtime, "anthropic");
+    assert.equal(nodes[2].id, "more-coming-soon");
+    assert.equal(nodes[2].isPlaceholder, true);
+  });
+
+  it("buildProviderNodes shows masked key when configured", () => {
+    const nodes = buildProviderNodes({
+      ...baseConfig,
+      credentials: {
+        byo: {
+          openai: { apiKey: "sk-proj-abcdefghijklmnop" },
+        },
+      },
+    });
+    const openai = nodes.find((n) => n.id === "openai");
+    assert.ok(openai);
+    assert.equal(openai.needsSetup, false);
+    assert.equal(openai.description, "sk-p****mnop");
   });
 });

@@ -56,6 +56,12 @@ export function hasCredentials(
       process.env.JERRY_API_KEY
     );
   }
+  if (runtime === "anthropic") {
+    return !!(
+      config.credentials?.byo?.anthropic?.apiKey ||
+      process.env.ANTHROPIC_API_KEY
+    );
+  }
   if (runtime === "byo-cloud" && provider) {
     return !!(
       config.credentials?.byo?.[provider]?.apiKey ||
@@ -91,7 +97,12 @@ export function selectRuntime(
   let newConfig: TermConfig = {
     ...config,
     runtime,
-    provider: runtime === "byo-cloud" ? (provider ?? "openai") : undefined,
+    provider:
+      runtime === "byo-cloud"
+        ? (provider ?? "openai")
+        : runtime === "anthropic"
+          ? "anthropic"
+          : undefined,
   };
 
   const lastModel = getLastModel(newConfig);

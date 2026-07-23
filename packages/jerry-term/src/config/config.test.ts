@@ -17,6 +17,8 @@ import {
   getLastModel,
   setCredential,
   setLastModel,
+  termConfigToProfile,
+  clearCredential,
 } from "./types.ts";
 import {
   toWireModel,
@@ -582,7 +584,7 @@ describe("Selection Helpers", () => {
 });
 
 describe("BYO Provider Availability", () => {
-  it("returns availability for all BYO providers", () => {
+  it("returns availability for OpenAI and Anthropic providers", () => {
     const config: TermConfig = {
       runtime: "local",
       model: "ollama:llama3.1:8b",
@@ -599,13 +601,169 @@ describe("BYO Provider Availability", () => {
     };
     const availability = getByoProviderAvailability(config);
 
+    assert.equal(availability.length, 2);
+
     const openai = availability.find((p) => p.id === "openai");
     assert.ok(openai);
     assert.equal(openai.hasApiKey, true);
     assert.equal(openai.lastModel, "gpt-4o");
 
-    const moonshot = availability.find((p) => p.id === "moonshot");
-    assert.ok(moonshot);
-    assert.equal(moonshot.hasApiKey, false);
+    const anthropic = availability.find((p) => p.id === "anthropic");
+    assert.ok(anthropic);
+    assert.equal(anthropic.hasApiKey, false);
+  });
+});
+
+describe("Config Persistence", () => {
+  const testConfigDir = join(homedir(), ".config/jerry-term-test-persist");
+
+  beforeEach(() => {
+    if (existsSync(testConfigDir)) {
+      rmSync(testConfigDir, { recursive: true });
+    }
+  });
+
+  afterEach(() => {
+    if (existsSync(testConfigDir)) {
+      rmSync(testConfigDir, { recursive: true });
+    }
+  });
+
+  it("clearCredential persists deletion when saved", () => {
+    mkdirSync(testConfigDir, { recursive: true });
+    const testPath = join(testConfigDir, "config.json");
+
+    // Start with a config that has credentials
+    const initial: TermConfig = {
+      runtime: "byo-cloud",
+      provider: "openai",
+      model: "https://api.openai.com/v1#gpt-4o",
+      credentials: {
+        byo: {
+          openai: { apiKey: "sk_test123" },
+          anthropic: { apiKey: "sk-ant-test456" },
+        },
+      },
+    };
+
+    // Save initial config
+    writeFileSync(testPath, JSON.stringify({
+      runtime: initial.runtime,
+      provider: initial.provider,
+      model: initial.model,
+      credentials: initial.credentials,
+    }, null, 2) + "\n");
+
+    // Load it back
+    const loaded = JSON.parse(readFileSync(testPath, "utf-8"));
+    assert.equal(loaded.credentials?.byo?.openai?.apiKey, "sk_test123");
+    assert.equal(loaded.credentials?.byo?.anthropic?.apiKey, "sk-ant-test456");
+
+    // Clear OpenAI credential
+    const cleared = clearCredential(initial, "byo-cloud", "openai");
+
+    // Save cleared config
+    writeFileSync(testPath, JSON.stringify({
+      runtime: cleared.runtime,
+      provider: cleared.provider,
+      model: cleared.model,
+      credentials: cleared.credentials,
+    }, null, 2) + "\n");
+
+    // Load again and verify OpenAI is gone but Anthropic remains
+    const reloaded = JSON.parse(readFileSync(testPath, "utf-8"));
+    assert.equal(reloaded.credentials?.byo?.openai, undefined);
+    assert.equal(reloaded.credentials?.byo?.anthropic?.apiKey, "sk-ant-test456");
+  });
+});
+
+describe("termConfigToProfile", () => {
+  it("falls back to vault-resolved apiKey when flat field is unset", () => {
+    const config: TermConfig = {
+      runtime: "byo-cloud",
+      provider: "openai",
+      model: "https://api.openai.com/v1#gpt-4o",
+      credentials: {
+        byo: {
+          openai: { apiKey: "sk_vault_key" },
+        },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.apiKey, "sk_vault_key");
+  });
+
+  it("falls back to vault-resolved endpoint when flat field is unset", () => {
+    const config: TermConfig = {
+      runtime: "byo-cloud",
+      provider: "custom",
+      model: "https://custom.api/v1#model",
+      credentials: {
+        byo: {
+          custom: { apiKey: "key", baseURL: "https://custom.api/v1" },
+        },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.endpoint, "https://custom.api/v1");
+  });
+
+  it("explicit config.apiKey wins over vault", () => {
+    const config: TermConfig = {
+      runtime: "byo-cloud",
+      provider: "openai",
+      model: "https://api.openai.com/v1#gpt-4o",
+      apiKey: "sk_explicit_key",
+      credentials: {
+        byo: {
+          openai: { apiKey: "sk_vault_key" },
+        },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.apiKey, "sk_explicit_key");
+  });
+
+  it("explicit config.endpoint wins over vault", () => {
+    const config: TermConfig = {
+      runtime: "byo-cloud",
+      provider: "custom",
+      model: "https://custom.api/v1#model",
+      endpoint: "https://explicit.api/v1",
+      credentials: {
+        byo: {
+          custom: { apiKey: "key", baseURL: "https://vault.api/v1" },
+        },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.endpoint, "https://explicit.api/v1");
+  });
+
+  it("resolves anthropic runtime apiKey from vault", () => {
+    const config: TermConfig = {
+      runtime: "anthropic",
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      credentials: {
+        byo: {
+          anthropic: { apiKey: "sk-ant-vault-key" },
+        },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.apiKey, "sk-ant-vault-key");
+  });
+
+  it("resolves ozwell runtime apiKey from vault", () => {
+    const config: TermConfig = {
+      runtime: "ozwell",
+      model: "gpt-4.1-mini",
+      credentials: {
+        ozwell: { apiKey: "ozw_vault_key" },
+      },
+    };
+    const profile = termConfigToProfile(config);
+    assert.equal(profile.apiKey, "ozw_vault_key");
   });
 });

@@ -16,6 +16,9 @@ import {
   fromWireModel,
   listOzwellModels,
   partitionOzwellModels,
+  listOpenAIModels,
+  listAnthropicModels,
+  maskApiKey,
 } from "../../config/index.ts";
 import { listOllamaModels } from "../../health/index.ts";
 
@@ -39,6 +42,25 @@ function resolveOzwellEndpoint(config: TermConfig): string {
     (config.runtime === "ozwell" ? config.endpoint : undefined) ??
     getProviderForRuntime("ozwell")?.baseURL ??
     "https://ozwellapi.os.mieweb.org"
+  );
+}
+
+function resolveOpenAIApiKey(config: TermConfig): string | undefined {
+  return (
+    process.env.OPENAI_API_KEY ??
+    process.env.JERRY_API_KEY ??
+    config.credentials?.byo?.openai?.apiKey ??
+    (config.runtime === "byo-cloud" && config.provider === "openai"
+      ? config.apiKey
+      : undefined)
+  );
+}
+
+function resolveAnthropicApiKey(config: TermConfig): string | undefined {
+  return (
+    process.env.ANTHROPIC_API_KEY ??
+    config.credentials?.byo?.anthropic?.apiKey ??
+    (config.runtime === "anthropic" ? config.apiKey : undefined)
   );
 }
 
@@ -77,6 +99,10 @@ export interface PickerNode {
   children?: PickerNode[];
   /** Expand/collapse row (e.g. Ozwell "Other models") */
   isToggle?: boolean;
+  /** Non-selectable placeholder node */
+  isPlaceholder?: boolean;
+  /** Remove API key action */
+  isRemoveKey?: boolean;
 }
 
 export interface PickerState {
@@ -103,6 +129,14 @@ export interface PickerState {
   ozwellUsedFallback?: boolean;
   /** Whether the Ozwell "Other models" group is expanded */
   ozwellOtherExpanded?: boolean;
+  /** Cached OpenAI model names */
+  openaiModels?: string[];
+  /** Last OpenAI fetch error (if any) */
+  openaiError?: string;
+  /** Cached Anthropic model info */
+  anthropicModels?: Array<{ id: string; displayName?: string }>;
+  /** Last Anthropic fetch error (if any) */
+  anthropicError?: string;
 }
 
 export function clampIndex(index: number, length: number): number {
@@ -136,7 +170,10 @@ export function buildRuntimeNodes(
   return runtimes.map((rt) => {
     const provider = getProviderForRuntime(rt, undefined);
     const hasCreds = hasCredentials(config, rt, undefined);
-    const isCurrent = config.runtime === rt;
+    // Anthropic lives under BYO in the picker even though its RuntimeKind is separate.
+    const isCurrent =
+      config.runtime === rt ||
+      (rt === "byo-cloud" && config.runtime === "anthropic");
 
     let description = "";
     if (rt === "local") {
@@ -173,6 +210,19 @@ export function buildRuntimeNodes(
           ? `(current: ${fromWireModel(config.model)})`
           : "ready";
       }
+    } else if (rt === "byo-cloud") {
+      // Setup is per-provider — never gate the BYO runtime row itself.
+      const byoProviders = getByoProviders();
+      const readyCount = byoProviders.filter((p) =>
+        hasCredentials(config, p.runtime, p.byoProvider)
+      ).length;
+      if (isCurrent) {
+        description = `(current: ${fromWireModel(config.model)})`;
+      } else if (readyCount > 0) {
+        description = `${readyCount} provider${readyCount !== 1 ? "s" : ""} ready`;
+      } else {
+        description = "OpenAI, Anthropic…";
+      }
     } else if (isCurrent) {
       description = `(current: ${fromWireModel(config.model)})`;
     } else if (!hasCreds) {
@@ -183,12 +233,13 @@ export function buildRuntimeNodes(
 
     return {
       id: rt,
-      label: provider?.name ?? rt,
+      label: rt === "byo-cloud" ? "BYO Cloud" : (provider?.name ?? rt),
       description,
       level: "runtime" as PickerLevel,
       runtime: rt,
-      needsSetup: rt !== "local" && !hasCreds,
-      docsURL: provider?.docsURL,
+      // byo-cloud always drills into the provider list; setup is per-provider.
+      needsSetup: rt !== "local" && rt !== "byo-cloud" && !hasCreds,
+      docsURL: rt === "byo-cloud" ? undefined : provider?.docsURL,
     };
   });
 }
@@ -196,16 +247,22 @@ export function buildRuntimeNodes(
 export function buildProviderNodes(config: TermConfig): PickerNode[] {
   const byoProviders = getByoProviders();
 
-  return byoProviders.map((p) => {
-    const hasCreds = hasCredentials(config, "byo-cloud", p.byoProvider);
+  const nodes: PickerNode[] = byoProviders.map((p) => {
+    const actualRuntime = p.runtime;
+    const hasCreds = hasCredentials(config, actualRuntime, p.byoProvider);
     const isCurrent =
-      config.runtime === "byo-cloud" && config.provider === p.byoProvider;
+      (config.runtime === actualRuntime && config.provider === p.byoProvider) ||
+      (config.runtime === "byo-cloud" && config.provider === p.byoProvider);
+
+    const savedKey = config.credentials?.byo?.[p.byoProvider!]?.apiKey;
 
     let description = "";
     if (isCurrent) {
       description = `(current: ${fromWireModel(config.model)})`;
     } else if (!hasCreds) {
       description = "needs setup";
+    } else if (savedKey) {
+      description = maskApiKey(savedKey);
     } else {
       description = "ready";
     }
@@ -215,12 +272,22 @@ export function buildProviderNodes(config: TermConfig): PickerNode[] {
       label: p.name,
       description,
       level: "provider" as PickerLevel,
-      runtime: "byo-cloud",
+      runtime: actualRuntime,
       provider: p.byoProvider,
       needsSetup: !hasCreds,
       docsURL: p.docsURL,
     };
   });
+
+  nodes.push({
+    id: "more-coming-soon",
+    label: "── More coming soon ──",
+    description: "",
+    level: "provider" as PickerLevel,
+    isPlaceholder: true,
+  });
+
+  return nodes;
 }
 
 export interface BuildModelNodesOptions {
@@ -230,6 +297,10 @@ export interface BuildModelNodesOptions {
   ozwellError?: string;
   ozwellUsedFallback?: boolean;
   ozwellOtherExpanded?: boolean;
+  openaiModels?: string[];
+  openaiError?: string;
+  anthropicModels?: Array<{ id: string; displayName?: string }>;
+  anthropicError?: string;
 }
 
 function buildOzwellModelNodes(
@@ -385,6 +456,108 @@ export function buildModelNodes(
     }
   }
 
+  if (runtime === "byo-cloud" && provider === "openai") {
+    if (options?.loading) {
+      return [
+        {
+          id: "openai-loading",
+          label: "Loading OpenAI models…",
+          description: "GET /v1/models",
+          level: "model" as PickerLevel,
+          runtime,
+          provider,
+        },
+      ];
+    }
+
+    if (options?.openaiError) {
+      return [
+        {
+          id: "openai-error",
+          label: options.openaiError === "Invalid API key" ? "Invalid API key" : "Service unavailable",
+          description: options.openaiError,
+          level: "model" as PickerLevel,
+          runtime,
+          provider,
+        },
+      ];
+    }
+
+    if (options?.openaiModels?.length) {
+      return options.openaiModels.map((m) => ({
+        id: m,
+        label: m,
+        description: m === currentModelId ? "(current)" : undefined,
+        level: "model" as PickerLevel,
+        runtime,
+        provider,
+        model: m,
+      }));
+    }
+
+    return [
+      {
+        id: "openai-loading",
+        label: "Loading OpenAI models…",
+        description: "GET /v1/models",
+        level: "model" as PickerLevel,
+        runtime,
+        provider,
+      },
+    ];
+  }
+
+  if (runtime === "anthropic") {
+    if (options?.loading) {
+      return [
+        {
+          id: "anthropic-loading",
+          label: "Loading Anthropic models…",
+          description: "GET /v1/models",
+          level: "model" as PickerLevel,
+          runtime,
+          provider,
+        },
+      ];
+    }
+
+    if (options?.anthropicError) {
+      return [
+        {
+          id: "anthropic-error",
+          label: options.anthropicError === "Invalid API key" ? "Invalid API key" : "Service unavailable",
+          description: options.anthropicError,
+          level: "model" as PickerLevel,
+          runtime,
+          provider,
+        },
+      ];
+    }
+
+    if (options?.anthropicModels?.length) {
+      return options.anthropicModels.map((m) => ({
+        id: m.id,
+        label: m.displayName ?? m.id,
+        description: m.id === currentModelId ? "(current)" : undefined,
+        level: "model" as PickerLevel,
+        runtime,
+        provider,
+        model: m.id,
+      }));
+    }
+
+    return [
+      {
+        id: "anthropic-loading",
+        label: "Loading Anthropic models…",
+        description: "GET /v1/models",
+        level: "model" as PickerLevel,
+        runtime,
+        provider,
+      },
+    ];
+  }
+
   if (providerDef?.models.length) {
     return providerDef.models.map((m) => ({
       id: m.id,
@@ -431,7 +604,7 @@ export interface RuntimePickerCallbacks {
     provider: ByoProviderId | undefined,
     apiKey: string,
     baseURL?: string
-  ) => void;
+  ) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -563,6 +736,110 @@ export function useRuntimePicker(
   []
   );
 
+  const loadOpenAIModels = React.useCallback(
+    async (forModelLevel: boolean, apiKeyOverride?: string) => {
+      const gen = ++fetchGenRef.current;
+      setState((prev) => {
+        if (!prev.isOpen) return prev;
+        const cfg = configRef.current;
+        const nodes = forModelLevel
+          ? buildModelNodes(cfg, "byo-cloud", "openai", undefined, {
+              loading: true,
+              openaiModels: prev.openaiModels,
+              openaiError: prev.openaiError,
+            })
+          : prev.nodes;
+        return {
+          ...prev,
+          loading: true,
+          nodes: forModelLevel ? nodes : prev.nodes,
+        };
+      });
+
+      const cfg = configRef.current;
+      const result = await listOpenAIModels({
+        apiKey: apiKeyOverride ?? resolveOpenAIApiKey(cfg),
+      });
+      if (gen !== fetchGenRef.current) return;
+
+      setState((prev) => {
+        if (!prev.isOpen) return prev;
+        const next = {
+          ...prev,
+          loading: false,
+          openaiModels: result.ok ? result.models : [],
+          openaiError: result.ok ? undefined : result.error,
+        };
+
+        if (forModelLevel || prev.level === "model") {
+          return {
+            ...next,
+            nodes: buildModelNodes(configRef.current, "byo-cloud", "openai", undefined, {
+              openaiModels: result.ok ? result.models : [],
+              openaiError: result.ok ? undefined : result.error,
+            }),
+            selectedIndex: 0,
+          };
+        }
+
+        return next;
+      });
+    },
+    []
+  );
+
+  const loadAnthropicModels = React.useCallback(
+    async (forModelLevel: boolean, apiKeyOverride?: string) => {
+      const gen = ++fetchGenRef.current;
+      setState((prev) => {
+        if (!prev.isOpen) return prev;
+        const cfg = configRef.current;
+        const nodes = forModelLevel
+          ? buildModelNodes(cfg, "anthropic", "anthropic", undefined, {
+              loading: true,
+              anthropicModels: prev.anthropicModels,
+              anthropicError: prev.anthropicError,
+            })
+          : prev.nodes;
+        return {
+          ...prev,
+          loading: true,
+          nodes: forModelLevel ? nodes : prev.nodes,
+        };
+      });
+
+      const cfg = configRef.current;
+      const result = await listAnthropicModels({
+        apiKey: apiKeyOverride ?? resolveAnthropicApiKey(cfg),
+      });
+      if (gen !== fetchGenRef.current) return;
+
+      setState((prev) => {
+        if (!prev.isOpen) return prev;
+        const next = {
+          ...prev,
+          loading: false,
+          anthropicModels: result.ok ? result.models : [],
+          anthropicError: result.ok ? undefined : result.error,
+        };
+
+        if (forModelLevel || prev.level === "model") {
+          return {
+            ...next,
+            nodes: buildModelNodes(configRef.current, "anthropic", "anthropic", undefined, {
+              anthropicModels: result.ok ? result.models : [],
+              anthropicError: result.ok ? undefined : result.error,
+            }),
+            selectedIndex: 0,
+          };
+        }
+
+        return next;
+      });
+    },
+    []
+  );
+
   const open = React.useCallback(
     (options?: {
       mode?: PickerLevel;
@@ -576,18 +853,27 @@ export function useRuntimePicker(
       const prov = options?.provider ?? config.provider;
       let shouldFetchOllama = false;
       let shouldFetchOzwell = false;
+      let shouldFetchOpenAI = false;
+      let shouldFetchAnthropic = false;
 
       if (mode === "runtime") {
         nodes = buildRuntimeNodes(config);
         shouldFetchOllama = true;
         shouldFetchOzwell = hasCredentials(config, "ozwell", undefined);
       } else if (mode === "model") {
+        const needsLoading =
+          rt === "local" ||
+          rt === "ozwell" ||
+          (rt === "byo-cloud" && prov === "openai") ||
+          rt === "anthropic";
         nodes = buildModelNodes(config, rt, prov, undefined, {
-          loading: rt === "local" || rt === "ozwell",
+          loading: needsLoading,
         });
         level = "model";
         shouldFetchOllama = rt === "local";
         shouldFetchOzwell = rt === "ozwell";
+        shouldFetchOpenAI = rt === "byo-cloud" && prov === "openai";
+        shouldFetchAnthropic = rt === "anthropic";
       } else if (mode === "setup") {
         level = "setup";
       }
@@ -603,7 +889,11 @@ export function useRuntimePicker(
         setupApiKey: "",
         setupBaseURL: "",
         loading:
-          (shouldFetchOllama || shouldFetchOzwell) && mode === "model",
+          (shouldFetchOllama ||
+            shouldFetchOzwell ||
+            shouldFetchOpenAI ||
+            shouldFetchAnthropic) &&
+          mode === "model",
       });
 
       if (shouldFetchOllama) {
@@ -612,8 +902,14 @@ export function useRuntimePicker(
       if (shouldFetchOzwell) {
         void loadOzwellModels(mode === "model" && rt === "ozwell");
       }
+      if (shouldFetchOpenAI) {
+        void loadOpenAIModels(true);
+      }
+      if (shouldFetchAnthropic) {
+        void loadAnthropicModels(true);
+      }
     },
-    [config, loadOllamaModels, loadOzwellModels]
+    [config, loadOllamaModels, loadOzwellModels, loadOpenAIModels, loadAnthropicModels]
   );
 
   const close = React.useCallback(() => {
@@ -635,8 +931,9 @@ export function useRuntimePicker(
       if (!prev.isOpen) return prev;
 
       if (prev.setupMode) {
-        const level: PickerLevel =
-          prev.runtime === "byo-cloud" ? "provider" : "runtime";
+        const goToProvider =
+          prev.runtime === "byo-cloud" || prev.runtime === "anthropic";
+        const level: PickerLevel = goToProvider ? "provider" : "runtime";
         return {
           ...prev,
           setupMode: false,
@@ -650,7 +947,7 @@ export function useRuntimePicker(
       }
 
       if (prev.level === "model") {
-        if (prev.runtime === "byo-cloud") {
+        if (prev.runtime === "byo-cloud" || prev.runtime === "anthropic") {
           return {
             ...prev,
             level: "provider",
@@ -690,6 +987,22 @@ export function useRuntimePicker(
 
   const selectNode = React.useCallback(
     (node: PickerNode) => {
+      if (node.isPlaceholder) {
+        return;
+      }
+
+      // Drill into BYO providers before any setup check — setup is per-provider.
+      if (node.level === "runtime" && node.runtime === "byo-cloud") {
+        setState((prev) => ({
+          ...prev,
+          level: "provider",
+          runtime: "byo-cloud",
+          nodes: buildProviderNodes(configRef.current),
+          selectedIndex: 0,
+        }));
+        return;
+      }
+
       if (node.needsSetup) {
         setState((prev) => ({
           ...prev,
@@ -703,17 +1016,6 @@ export function useRuntimePicker(
       }
 
       if (node.level === "runtime") {
-        if (node.runtime === "byo-cloud") {
-          setState((prev) => ({
-            ...prev,
-            level: "provider",
-            runtime: "byo-cloud",
-            nodes: buildProviderNodes(configRef.current),
-            selectedIndex: 0,
-          }));
-          return;
-        }
-
         if (node.runtime === "local") {
           setState((prev) => ({
             ...prev,
@@ -769,13 +1071,56 @@ export function useRuntimePicker(
       }
 
       if (node.level === "provider") {
+        const actualRuntime = node.runtime ?? "byo-cloud";
+
+        if (actualRuntime === "byo-cloud" && node.provider === "openai") {
+          setState((prev) => ({
+            ...prev,
+            level: "model",
+            runtime: actualRuntime,
+            provider: node.provider,
+            loading: true,
+            nodes: buildModelNodes(
+              configRef.current,
+              actualRuntime,
+              node.provider,
+              undefined,
+              { loading: true, openaiModels: prev.openaiModels, openaiError: prev.openaiError }
+            ),
+            selectedIndex: 0,
+          }));
+          void loadOpenAIModels(true);
+          return;
+        }
+
+        if (actualRuntime === "anthropic") {
+          setState((prev) => ({
+            ...prev,
+            level: "model",
+            runtime: actualRuntime,
+            provider: node.provider,
+            loading: true,
+            nodes: buildModelNodes(
+              configRef.current,
+              actualRuntime,
+              node.provider,
+              undefined,
+              { loading: true, anthropicModels: prev.anthropicModels, anthropicError: prev.anthropicError }
+            ),
+            selectedIndex: 0,
+          }));
+          void loadAnthropicModels(true);
+          return;
+        }
+
         setState((prev) => ({
           ...prev,
           level: "model",
+          runtime: actualRuntime,
           provider: node.provider,
           nodes: buildModelNodes(
             configRef.current,
-            "byo-cloud",
+            actualRuntime,
             node.provider
           ),
           selectedIndex: 0,
@@ -814,7 +1159,7 @@ export function useRuntimePicker(
         setState((prev) => ({ ...prev, isOpen: false, loading: false }));
       }
     },
-    [loadOllamaModels, loadOzwellModels]
+    [loadOllamaModels, loadOzwellModels, loadOpenAIModels, loadAnthropicModels]
   );
 
   const onKey = React.useCallback(
@@ -832,40 +1177,57 @@ export function useRuntimePicker(
         if (name === "return" && state.setupApiKey.trim()) {
           const runtime = state.runtime!;
           const provider = state.provider;
-          callbacksRef.current.onSetupComplete(
-            runtime,
-            provider,
-            state.setupApiKey.trim(),
-            state.setupBaseURL.trim() || undefined
-          );
-          // After setup, drill into model list (do not close picker).
-          setState((prev) => ({
-            ...prev,
-            setupMode: false,
-            setupApiKey: "",
-            setupBaseURL: "",
-            level: "model",
-            runtime,
-            provider,
-            nodes: buildModelNodes(
-              configRef.current,
-              runtime,
-              provider,
-              prev.ollamaModels,
-              runtime === "local"
-                ? { loading: true, ollamaError: prev.ollamaError }
-                : runtime === "ozwell"
-                  ? { loading: true }
-                  : undefined
-            ),
-            selectedIndex: 0,
-            loading: runtime === "local" || runtime === "ozwell",
-          }));
-          if (runtime === "local") {
-            void loadOllamaModels(true);
-          } else if (runtime === "ozwell") {
-            void loadOzwellModels(true, state.setupApiKey.trim());
-          }
+          const apiKey = state.setupApiKey.trim();
+          
+          // Call the async callback and wait for it
+          void (async () => {
+            try {
+              await callbacksRef.current.onSetupComplete(
+                runtime,
+                provider,
+                apiKey,
+                state.setupBaseURL.trim() || undefined
+              );
+
+              const needsLoading =
+                runtime === "local" ||
+                runtime === "ozwell" ||
+                (runtime === "byo-cloud" && provider === "openai") ||
+                runtime === "anthropic";
+
+              setState((prev) => ({
+                ...prev,
+                setupMode: false,
+                setupApiKey: "",
+                setupBaseURL: "",
+                level: "model",
+                runtime,
+                provider,
+                nodes: buildModelNodes(
+                  configRef.current,
+                  runtime,
+                  provider,
+                  prev.ollamaModels,
+                  needsLoading ? { loading: true } : undefined
+                ),
+                selectedIndex: 0,
+                loading: needsLoading,
+              }));
+
+              if (runtime === "local") {
+                void loadOllamaModels(true);
+              } else if (runtime === "ozwell") {
+                void loadOzwellModels(true, apiKey);
+              } else if (runtime === "byo-cloud" && provider === "openai") {
+                void loadOpenAIModels(true, apiKey);
+              } else if (runtime === "anthropic") {
+                void loadAnthropicModels(true, apiKey);
+              }
+            } catch (error) {
+              // If validation fails, stay in setup mode and show error
+              // The error message will be shown by the caller
+            }
+          })();
           return true;
         }
         return false;
@@ -912,7 +1274,7 @@ export function useRuntimePicker(
 
       return false;
     },
-    [state, navigateBackOrClose, selectNode, loadOllamaModels, loadOzwellModels]
+    [state, navigateBackOrClose, selectNode, loadOllamaModels, loadOzwellModels, loadOpenAIModels, loadAnthropicModels]
   );
 
   const setSetupApiKey = React.useCallback((key: string) => {
@@ -1041,10 +1403,15 @@ export function RuntimePicker({
 
   const breadcrumb = [
     state.level !== "runtime" && state.runtime
-      ? getProviderForRuntime(state.runtime, undefined)?.name ?? state.runtime
+      ? state.runtime === "byo-cloud" || state.runtime === "anthropic"
+        ? "BYO Cloud"
+        : (getProviderForRuntime(state.runtime, undefined)?.name ?? state.runtime)
       : null,
     state.level === "model" && state.provider
-      ? getProviderForRuntime("byo-cloud", state.provider)?.name ?? state.provider
+      ? getProviderForRuntime(
+          state.runtime === "anthropic" ? "anthropic" : "byo-cloud",
+          state.provider
+        )?.name ?? state.provider
       : null,
   ]
     .filter(Boolean)

@@ -16,6 +16,7 @@ import {
     switchModel,
     selectRuntime,
     fromWireModel,
+    validateCredentials,
 } from "../config/index.ts";
 import { getTheme } from "./theme/index.ts";
 import { useBridge } from "./hooks/useBridge.ts";
@@ -107,6 +108,8 @@ export function App({
                 if (
                     next.runtime !== node.runtime ||
                     (node.runtime === "byo-cloud" &&
+                        next.provider !== node.provider) ||
+                    (node.runtime === "anthropic" &&
                         next.provider !== node.provider)
                 ) {
                     const selected = selectRuntime(
@@ -132,12 +135,25 @@ export function App({
                 );
                 setCurrentConfig(result.config);
             },
-            onSetupComplete: (
+            onSetupComplete: async (
                 runtime: RuntimeKind,
                 provider: ByoProviderId | undefined,
                 apiKey: string,
                 baseURL?: string
             ) => {
+                // Validate credentials before saving
+                const validation = await validateCredentials(
+                    runtime,
+                    provider,
+                    apiKey,
+                    baseURL
+                );
+
+                if (!validation.valid) {
+                    // Throw error to prevent picker from closing
+                    throw new Error(validation.error);
+                }
+
                 // Persist credentials only; picker keeps open and drills to models.
                 const result = setupCredentials(
                     configRef.current,
@@ -171,7 +187,7 @@ export function App({
         [runtimePicker]
     );
 
-    const replState = useRepl(bridge, currentConfig, registry, onExit, openPicker);
+    const replState = useRepl(bridge, currentConfig, setCurrentConfig, registry, onExit, openPicker);
     const {
         inputValue,
         setInputValue,
@@ -187,12 +203,6 @@ export function App({
         exitApp,
         observability,
     } = replState;
-
-    useEffect(() => {
-        if (replState.config !== currentConfig) {
-            setCurrentConfig(replState.config);
-        }
-    }, [replState.config, currentConfig]);
 
     const allCommands = registry.getAll();
     const commandDropdown = useCommandDropdown(

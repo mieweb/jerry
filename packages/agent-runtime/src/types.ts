@@ -5,8 +5,9 @@ import type { CoreMessage, LanguageModelUsage, ToolSet } from "ai";
  * - `local`: In-process loop over local Ollama (OpenAI-compatible). Nothing leaves the machine.
  * - `byo-cloud`: Same loop, pointed at user's chosen OpenAI-compatible LLM. Only model payloads leave.
  * - `ozwell`: Managed path via the Ozwell agent system.
+ * - `anthropic`: Native Anthropic API (Claude models).
  */
-export type RuntimeKind = "local" | "byo-cloud" | "ozwell";
+export type RuntimeKind = "local" | "byo-cloud" | "ozwell" | "anthropic";
 
 /**
  * Egress policy for the runtime.

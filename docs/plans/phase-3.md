@@ -1278,8 +1278,17 @@ const getLatencyColor = (ms: number) => {
 
 **Out of scope:**
 
-- Native Anthropic SDK (OpenAI-compatible only in v1)
+- ~~Native Anthropic SDK (OpenAI-compatible only in v1)~~ — **Done**: Added `@ai-sdk/anthropic` backend, live `/v1/models` listing, and BYO picker support
 - OS keychain integration (plain JSON, same trust model as before)
+
+**Slice 6.6.1 - BYO Live Models + API Key Management (completed):**
+
+- **OpenAI** — Live `/v1/models` fetches available models; auth/unavailable errors displayed gracefully
+- **Anthropic** — Native `@ai-sdk/anthropic` runtime; live `/v1/models` with `x-api-key` header
+- **Masked keys** — API keys displayed as `sk-pr****abcd` everywhere (config, picker, status)
+- **Clear keys** — `/config clearKey [ozwell|openai|anthropic]` and picker "Remove API key"
+- **BYO picker** — Shows OpenAI + Anthropic; "More coming soon" placeholder for deferred providers
+- **Key-only setup** — No endpoint prompts for OpenAI/Anthropic (fixed base URLs)
 
 ---
 

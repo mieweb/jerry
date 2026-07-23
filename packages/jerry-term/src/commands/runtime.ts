@@ -16,8 +16,8 @@ import {
   fromWireModel,
 } from "../config/index.ts";
 
-const VALID_RUNTIMES: RuntimeKind[] = ["local", "ozwell", "byo-cloud"];
-const VALID_BYO_PROVIDERS: ByoProviderId[] = ["openai", "moonshot", "custom"];
+const VALID_RUNTIMES: RuntimeKind[] = ["local", "ozwell", "byo-cloud", "anthropic"];
+const VALID_BYO_PROVIDERS: ByoProviderId[] = ["openai", "anthropic"];
 
 export const runtimeCommand: Command = {
   name: "runtime",

@@ -98,7 +98,7 @@ const OPENAI_MODELS: ProviderModel[] = [
 ];
 
 /**
- * Curated model list for Moonshot/Kimi.
+ * Curated model list for Moonshot/Kimi (hidden this slice).
  */
 const MOONSHOT_MODELS: ProviderModel[] = [
   { id: "moonshot-v1-8k", name: "Moonshot v1 8K", description: "8K context" },
@@ -136,6 +136,18 @@ export const PROVIDERS: ProviderDefinition[] = [
     docsURL: "https://platform.openai.com/api-keys",
     keyPrefix: "sk-",
     models: OPENAI_MODELS,
+    supportsModelList: true,
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic (Claude)",
+    runtime: "anthropic",
+    byoProvider: "anthropic",
+    baseURL: "https://api.anthropic.com",
+    docsURL: "https://console.anthropic.com/settings/keys",
+    keyPrefix: "sk-ant-",
+    models: [],
+    supportsModelList: true,
   },
   {
     id: "moonshot",
@@ -176,6 +188,9 @@ export function getProviderForRuntime(
   if (runtime === "ozwell") {
     return PROVIDERS.find((p) => p.id === "ozwell");
   }
+  if (runtime === "anthropic") {
+    return PROVIDERS.find((p) => p.id === "anthropic");
+  }
   if (runtime === "byo-cloud" && byoProvider) {
     return PROVIDERS.find((p) => p.byoProvider === byoProvider);
   }
@@ -183,10 +198,17 @@ export function getProviderForRuntime(
 }
 
 /**
- * Get all BYO providers.
+ * BYO provider IDs shown in the picker (OpenAI + Anthropic only this slice).
+ */
+const VISIBLE_BYO_PROVIDERS: ByoProviderId[] = ["openai", "anthropic"];
+
+/**
+ * Get BYO providers shown in the picker (OpenAI + Anthropic).
  */
 export function getByoProviders(): ProviderDefinition[] {
-  return PROVIDERS.filter((p) => p.runtime === "byo-cloud");
+  return PROVIDERS.filter(
+    (p) => p.byoProvider && VISIBLE_BYO_PROVIDERS.includes(p.byoProvider)
+  );
 }
 
 /**
@@ -195,6 +217,7 @@ export function getByoProviders(): ProviderDefinition[] {
  * Wire formats:
  * - local: `ollama:<modelId>`
  * - ozwell: bare model id (e.g. `gpt-4.1-mini`)
+ * - anthropic: bare model id (e.g. `claude-sonnet-4-20250514`)
  * - byo-cloud: `https://<baseURL>#<modelId>`
  */
 export function toWireModel(
@@ -209,7 +232,7 @@ export function toWireModel(
     return `ollama:${modelId}`;
   }
 
-  if (runtime === "ozwell") {
+  if (runtime === "ozwell" || runtime === "anthropic") {
     if (modelId.startsWith("ollama:")) {
       return modelId.slice("ollama:".length);
     }
@@ -266,6 +289,7 @@ export const DEFAULT_MODELS: Record<string, string> = {
   ollama: "llama3.1:8b",
   ozwell: "gpt-4.1-mini",
   openai: "gpt-4o",
+  anthropic: "claude-sonnet-4-20250514",
   moonshot: "moonshot-v1-8k",
   custom: "",
 };

@@ -23,7 +23,7 @@ const DEFAULT_CONFIG: TermConfig = {
   model: "ollama:llama3.1:8b",
 };
 
-const VALID_BYO_PROVIDERS: ByoProviderId[] = ["openai", "moonshot", "custom"];
+const VALID_BYO_PROVIDERS: ByoProviderId[] = ["openai", "anthropic", "moonshot", "custom"];
 
 function getConfigPaths(): string[] {
   const home = homedir();
@@ -45,7 +45,7 @@ function readConfigFile(path: string): TermConfigFile | null {
 }
 
 function isValidRuntime(value: string): value is RuntimeKind {
-  return ["local", "ozwell", "byo-cloud"].includes(value);
+  return ["local", "ozwell", "byo-cloud", "anthropic"].includes(value);
 }
 
 function isValidByoProvider(value: string): value is ByoProviderId {
@@ -154,6 +154,11 @@ export function loadTermConfig(): TermConfig {
     config.provider = "openai";
   }
 
+  // Default provider for anthropic if not set
+  if (config.runtime === "anthropic" && !config.provider) {
+    config.provider = "anthropic";
+  }
+
   // Environment variables (highest precedence)
   if (process.env.JERRY_RUNTIME && isValidRuntime(process.env.JERRY_RUNTIME)) {
     config.runtime = process.env.JERRY_RUNTIME;
@@ -182,6 +187,10 @@ export function loadTermConfig(): TermConfig {
       process.env.OZWELL_API_KEY ??
       process.env.OZWELL_AGENT_KEY ??
       process.env.JERRY_API_KEY ??
+      vaultApiKey;
+  } else if (config.runtime === "anthropic") {
+    config.apiKey =
+      process.env.ANTHROPIC_API_KEY ??
       vaultApiKey;
   } else if (config.runtime === "byo-cloud") {
     config.apiKey =
@@ -214,7 +223,7 @@ export function getUserConfigPath(): string {
 /**
  * Save TermConfig to the user config file.
  * Creates ~/.config/jerry-term/ directory if it doesn't exist.
- * Preserves credentials vault (never wipes on switch).
+ * Writes credentials exactly as they are in memory (allows deletions to persist).
  */
 export function saveTermConfig(config: TermConfig): void {
   const configPath = getUserConfigPath();
@@ -223,9 +232,6 @@ export function saveTermConfig(config: TermConfig): void {
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true });
   }
-
-  // Read existing file to preserve credentials we might not have in memory
-  const existing = readConfigFile(configPath);
 
   const fileConfig: TermConfigFile = {
     runtime: config.runtime,
@@ -240,28 +246,15 @@ export function saveTermConfig(config: TermConfig): void {
     fileConfig.egress = config.egress;
   }
 
-  // Merge credentials (never wipe)
-  fileConfig.credentials = {
-    ...existing?.credentials,
-    ...config.credentials,
-  };
-  if (config.credentials?.byo || existing?.credentials?.byo) {
-    fileConfig.credentials.byo = {
-      ...existing?.credentials?.byo,
-      ...config.credentials?.byo,
-    };
+  // Write credentials exactly as they are in memory (don't merge from file)
+  // This allows deletions via clearCredential to persist
+  if (config.credentials) {
+    fileConfig.credentials = config.credentials;
   }
 
-  // Merge lastModel (never wipe)
-  fileConfig.lastModel = {
-    ...existing?.lastModel,
-    ...config.lastModel,
-  };
-  if (config.lastModel?.byo || existing?.lastModel?.byo) {
-    fileConfig.lastModel.byo = {
-      ...existing?.lastModel?.byo,
-      ...config.lastModel?.byo,
-    };
+  // Write lastModel exactly as it is in memory
+  if (config.lastModel) {
+    fileConfig.lastModel = config.lastModel;
   }
 
   // Don't write flat apiKey anymore - it lives in credentials vault
@@ -341,6 +334,9 @@ export function getRuntimeAvailability(config?: TermConfig): RuntimeAvailability
   ];
 }
 
+/** BYO providers shown in the picker (OpenAI + Anthropic only). */
+const VISIBLE_BYO_PROVIDERS: ByoProviderId[] = ["openai", "anthropic"];
+
 /**
  * Get availability for BYO providers specifically.
  */
@@ -349,7 +345,7 @@ export function getByoProviderAvailability(config?: TermConfig): ByoProviderAvai
   const byoCreds = cfg.credentials?.byo ?? {};
   const byoLastModels = cfg.lastModel?.byo ?? {};
 
-  return VALID_BYO_PROVIDERS.map((id) => ({
+  return VISIBLE_BYO_PROVIDERS.map((id) => ({
     id,
     hasApiKey: !!byoCreds[id]?.apiKey,
     baseURL: byoCreds[id]?.baseURL,

@@ -5,7 +5,7 @@
 import type { RuntimeKind, PrivacyProfile } from "@mieweb/jerry-agent-runtime";
 
 /** BYO provider identifiers */
-export type ByoProviderId = "openai" | "moonshot" | "custom";
+export type ByoProviderId = "openai" | "anthropic" | "moonshot" | "custom";
 
 /** Credential entry for a single provider */
 export interface ProviderCredential {
@@ -62,8 +62,8 @@ export function termConfigToProfile(config: TermConfig): Partial<PrivacyProfile>
   return {
     runtime: config.runtime,
     model: config.model,
-    apiKey: config.apiKey,
-    endpoint: config.endpoint,
+    apiKey: config.apiKey ?? getActiveApiKey(config),
+    endpoint: config.endpoint ?? getActiveEndpoint(config),
     egress: config.egress as PrivacyProfile["egress"],
   };
 }
@@ -76,6 +76,9 @@ export function getActiveApiKey(config: TermConfig): string | undefined {
 
   if (config.runtime === "ozwell") {
     return config.credentials.ozwell?.apiKey;
+  }
+  if (config.runtime === "anthropic" && config.provider === "anthropic") {
+    return config.credentials.byo?.anthropic?.apiKey;
   }
   if (config.runtime === "byo-cloud" && config.provider) {
     return config.credentials.byo?.[config.provider]?.apiKey;
@@ -110,6 +113,9 @@ export function getLastModel(config: TermConfig): string | undefined {
   if (config.runtime === "ozwell") {
     return config.lastModel.ozwell;
   }
+  if (config.runtime === "anthropic") {
+    return config.lastModel.byo?.anthropic;
+  }
   if (config.runtime === "byo-cloud" && config.provider) {
     return config.lastModel.byo?.[config.provider];
   }
@@ -129,8 +135,9 @@ export function setCredential(
 
   if (runtime === "ozwell") {
     credentials.ozwell = credential;
-  } else if (runtime === "byo-cloud" && provider) {
-    credentials.byo = { ...credentials.byo, [provider]: credential };
+  } else if (runtime === "anthropic" || (runtime === "byo-cloud" && provider)) {
+    const actualProvider = runtime === "anthropic" ? "anthropic" : provider!;
+    credentials.byo = { ...credentials.byo, [actualProvider]: credential };
   }
 
   return { ...config, credentials };
@@ -151,9 +158,45 @@ export function setLastModel(
     lastModel.local = model;
   } else if (runtime === "ozwell") {
     lastModel.ozwell = model;
-  } else if (runtime === "byo-cloud" && provider) {
-    lastModel.byo = { ...lastModel.byo, [provider]: model };
+  } else if (runtime === "anthropic" || (runtime === "byo-cloud" && provider)) {
+    const actualProvider = runtime === "anthropic" ? "anthropic" : provider!;
+    lastModel.byo = { ...lastModel.byo, [actualProvider]: model };
   }
 
   return { ...config, lastModel };
+}
+
+/**
+ * Clear a credential from the vault (immutably returns new config).
+ * Also clears the active apiKey if the cleared slot was active.
+ */
+export function clearCredential(
+  config: TermConfig,
+  runtime: RuntimeKind,
+  provider?: ByoProviderId
+): TermConfig {
+  const credentials: CredentialsVault = { ...config.credentials };
+  let newConfig = { ...config };
+
+  if (runtime === "ozwell") {
+    delete credentials.ozwell;
+    if (config.runtime === "ozwell") {
+      newConfig.apiKey = undefined;
+    }
+  } else if (runtime === "anthropic" || (runtime === "byo-cloud" && provider)) {
+    const actualProvider = runtime === "anthropic" ? "anthropic" : provider;
+    if (credentials.byo && actualProvider) {
+      credentials.byo = { ...credentials.byo };
+      delete credentials.byo[actualProvider];
+    }
+    const isActive =
+      (config.runtime === "anthropic" && actualProvider === "anthropic") ||
+      (config.runtime === "byo-cloud" && config.provider === actualProvider);
+    if (isActive) {
+      newConfig.apiKey = undefined;
+    }
+  }
+
+  newConfig.credentials = credentials;
+  return newConfig;
 }

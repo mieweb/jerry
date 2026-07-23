@@ -17,7 +17,10 @@ export {
   getLastModel,
   setCredential,
   setLastModel,
+  clearCredential,
 } from "./types.ts";
+
+export { maskApiKey } from "./mask.ts";
 export {
   loadTermConfig,
   saveTermConfig,
@@ -62,3 +65,20 @@ export type {
   ListOzwellModelsResult,
 } from "./list-ozwell-models.ts";
 export { listOzwellModels } from "./list-ozwell-models.ts";
+
+export type {
+  ListOpenAIModelsOptions,
+  ListOpenAIModelsResult,
+  ErrorKind,
+} from "./list-openai-models.ts";
+export { listOpenAIModels } from "./list-openai-models.ts";
+
+export type {
+  ListAnthropicModelsOptions,
+  ListAnthropicModelsResult,
+  AnthropicModelInfo,
+} from "./list-anthropic-models.ts";
+export { listAnthropicModels } from "./list-anthropic-models.ts";
+
+export type { ValidateCredentialsResult } from "./validate-credentials.ts";
+export { validateCredentials } from "./validate-credentials.ts";
