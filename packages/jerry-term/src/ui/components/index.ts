@@ -8,3 +8,15 @@ export { TreeView, TreeItem, type TreeViewProps, type TreeItemProps } from "./Tr
 export { ToolCallItem, type ToolCallItemProps } from "./ToolCallItem.tsx";
 export { ToolPanel, type ToolPanelProps } from "./ToolPanel.tsx";
 export { ThinkingPanel, type ThinkingPanelProps } from "./ThinkingPanel.tsx";
+export {
+  CommandDropdown,
+  useCommandDropdown,
+  isSlashMode,
+  getSlashFilter,
+  filterCommands,
+  clampIndex,
+  getVisibleWindow,
+  getCompletionString,
+  type CommandDropdownProps,
+  type UseCommandDropdownResult,
+} from "./CommandDropdown.tsx";
