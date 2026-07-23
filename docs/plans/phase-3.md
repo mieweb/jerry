@@ -1294,7 +1294,7 @@ const getLatencyColor = (ms: number) => {
 
 ## Slice 7: Polish and Publish
 
-**Status:** Planned — ready to start (gated on the pre-publish green gate below)
+**Status:** Done (ready for PR)
 
 **Goal:** Final polish, documentation, and ship-ready npm packaging. Collaborators prove installability in the PR; the **org/repo owner** performs the real registry publish.
 
@@ -1381,16 +1381,16 @@ Examples:
 
 **PR checklist:**
 
-- [ ] Pre-publish green gate cleared (build + typecheck + tests green; `.d.ts` emitted)
-- [ ] README complete with examples and all four runtimes + vault + picker
-- [ ] CLI argument parsing implemented in `src/cli.ts` (incl. `--model`, `-r anthropic`, one-shot message)
-- [ ] User guide in docs/ (multi-provider setup + picker workflow)
-- [ ] Publish workflow created (manual; org `NPM_TOKEN`)
-- [ ] Dry-run publish succeeds
-- [ ] Local pack install demo documented (and optional video attached)
-- [ ] Bun compatibility verified
-- [ ] CHANGELOG created (covers Slices 5–6.6.1)
-- [ ] Final QA completed across all four runtimes
+- [x] Pre-publish green gate cleared (build + typecheck + tests green; `.d.ts` emitted)
+- [x] README complete with examples and all four runtimes + vault + picker
+- [x] CLI argument parsing implemented in `src/cli.ts` (incl. `--model`, `-r anthropic`, one-shot message)
+- [x] User guide in docs/ (multi-provider setup + picker workflow)
+- [x] Publish workflow created (manual; org `NPM_TOKEN`)
+- [x] Dry-run publish succeeds
+- [x] Local pack install demo documented (tested locally: `npm pack`, CLI smoke tests, Bun compatibility)
+- [x] Bun compatibility verified
+- [x] CHANGELOG created (covers Slices 5–6.6.1)
+- [x] Final QA completed across all four runtimes
 - [ ] PR explicitly asks owner to publish — collaborator does **not** `npm publish` from a personal account
 
 ---
