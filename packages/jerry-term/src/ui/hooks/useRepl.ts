@@ -6,7 +6,8 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import type { CoreMessage, ToolSet } from "ai";
 import type { JerryBridge } from "../../bridge/index.ts";
 import type { TermConfig } from "../../config/index.ts";
-import type { CommandRegistry, CommandContext } from "../../commands/index.ts";
+import { fromWireModel } from "../../config/index.ts";
+import type { CommandRegistry, CommandContext, OpenPickerOptions } from "../../commands/index.ts";
 import type { TranscriptLine } from "../components/ResponseArea.tsx";
 import { createLocalTools } from "../../tools/index.ts";
 import type { IOutputWriter } from "../../repl/output.ts";
@@ -23,6 +24,7 @@ export interface UseReplResult {
   lastLatencyMs: number | null;
   toolCount: number;
   config: TermConfig;
+  setConfig: (config: TermConfig) => void;
   handleSubmit: (value: string) => Promise<void>;
   handleHistoryUp: () => void;
   handleHistoryDown: () => void;
@@ -40,7 +42,8 @@ export function useRepl(
   bridge: JerryBridge,
   initialConfig: TermConfig,
   registry: CommandRegistry,
-  onExit: () => void
+  onExit: () => void,
+  openPicker?: (options: OpenPickerOptions) => void
 ): UseReplResult {
   const [inputValue, setInputValue] = useState("");
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
@@ -57,9 +60,19 @@ export function useRepl(
   const tools: ToolSet = useMemo(() => createLocalTools(), []);
   const observability = useObservability();
 
-  const addLine = useCallback((type: TranscriptLine["type"], content: string) => {
-    setTranscript((prev) => [...prev, { id: nextLineId(), type, content }]);
-  }, []);
+  const addLine = useCallback(
+    (
+      type: TranscriptLine["type"],
+      content: string,
+      meta?: Pick<TranscriptLine, "runtime" | "model">
+    ) => {
+      setTranscript((prev) => [
+        ...prev,
+        { id: nextLineId(), type, content, ...meta },
+      ]);
+    },
+    []
+  );
 
   const outputAdapter: IOutputWriter = useMemo(
     () => ({
@@ -110,6 +123,7 @@ export function useRepl(
         updateConfig: (updates) => {
           setConfig((prev) => ({ ...prev, ...updates }));
         },
+        openPicker,
       };
 
       try {
@@ -121,14 +135,19 @@ export function useRepl(
         );
       }
     },
-    [registry, bridge, config, outputAdapter, onExit, addLine]
+    [registry, bridge, config, outputAdapter, onExit, addLine, openPicker]
   );
 
   const handleChat = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      turnMeta: { runtime: string; model: string }
+    ) => {
       messagesRef.current.push({ role: "user", content: text });
 
       let assistantContent = "";
+      let sawToolCall = false;
+      let sawError = false;
       const startTime = Date.now();
       cancelledRef.current = false;
 
@@ -152,6 +171,7 @@ export function useRepl(
               assistantContent += event.text;
               break;
             case "tool-call":
+              sawToolCall = true;
               if (assistantContent) {
                 setStreamingContent("");
                 assistantContent = "";
@@ -161,16 +181,30 @@ export function useRepl(
               break;
             case "finish":
               if (assistantContent) {
-                addLine("assistant", assistantContent);
+                addLine("assistant", assistantContent, turnMeta);
                 messagesRef.current.push({
                   role: "assistant",
                   content: assistantContent,
                 });
+              } else if (!sawToolCall && !sawError) {
+                addLine(
+                  "error",
+                  `No response text from [${turnMeta.runtime}] ${turnMeta.model}. ` +
+                    (turnMeta.runtime === "ozwell"
+                      ? "This Ozwell model may not support streaming — try gpt-4.1-mini."
+                      : "The model finished without producing output.")
+                );
               }
+              addLine(
+                "result",
+                `via [${turnMeta.runtime}] ${turnMeta.model}`,
+                turnMeta
+              );
               setStreamingContent("");
               setLastLatencyMs(Date.now() - startTime);
               break;
             case "error":
+              sawError = true;
               addLine("error", event.message);
               break;
           }
@@ -197,19 +231,25 @@ export function useRepl(
       historyIndexRef.current = historyRef.current.length;
       setInputValue("");
 
-      addLine("user", trimmed);
-      setBusy(true);
-
       const commandMatch = trimmed.match(COMMAND_REGEX);
       if (commandMatch) {
+        addLine("user", trimmed);
+        setBusy(true);
         await handleCommand(commandMatch[1], commandMatch[2]);
       } else {
-        await handleChat(trimmed);
+        const profile = bridge.getProfile();
+        const turnMeta = {
+          runtime: profile.runtime,
+          model: fromWireModel(profile.model),
+        };
+        addLine("user", trimmed, turnMeta);
+        setBusy(true);
+        await handleChat(trimmed, turnMeta);
       }
 
       setBusy(false);
     },
-    [addLine, handleCommand, handleChat]
+    [addLine, handleCommand, handleChat, bridge]
   );
 
   const handleHistoryUp = useCallback(() => {
@@ -257,6 +297,7 @@ export function useRepl(
     lastLatencyMs,
     toolCount: Object.keys(tools).length,
     config,
+    setConfig,
     handleSubmit,
     handleHistoryUp,
     handleHistoryDown,

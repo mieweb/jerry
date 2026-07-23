@@ -13,8 +13,12 @@ export type {
   HealthReport,
 } from "./types.ts";
 
-export { createOllamaCheck } from "./ollama.ts";
-export type { OllamaCheckOptions } from "./ollama.ts";
+export { createOllamaCheck, listOllamaModels } from "./ollama.ts";
+export type {
+  OllamaCheckOptions,
+  ListOllamaModelsOptions,
+  ListOllamaModelsResult,
+} from "./ollama.ts";
 
 export { createActivityWatchCheck } from "./activity-watch.ts";
 export type { ActivityWatchCheckOptions } from "./activity-watch.ts";

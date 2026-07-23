@@ -2,7 +2,7 @@ import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
 import type { HealthCheck, HealthResult } from "./types.ts";
-import { createOllamaCheck } from "./ollama.ts";
+import { createOllamaCheck, listOllamaModels } from "./ollama.ts";
 import { createActivityWatchCheck } from "./activity-watch.ts";
 import { createFootnoteCheck } from "./footnote.ts";
 import { createMcpToolsCheck } from "./mcp-tools.ts";
@@ -60,6 +60,36 @@ describe("Health Checks", () => {
 
       assert.equal(result.status, "error");
       assert.match(result.message, /500/);
+    });
+
+    it("listOllamaModels returns installed model names", async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          models: [{ name: "llama3.1:8b" }, { name: "qwen2.5:3b" }],
+        }),
+      }));
+
+      const result = await listOllamaModels({
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.models, ["llama3.1:8b", "qwen2.5:3b"]);
+    });
+
+    it("listOllamaModels returns error when Ollama is down", async () => {
+      const mockFetch = mock.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      });
+
+      const result = await listOllamaModels({
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      assert.equal(result.ok, false);
+      assert.equal(result.models.length, 0);
+      assert.match(result.error ?? "", /ECONNREFUSED/);
     });
   });
 

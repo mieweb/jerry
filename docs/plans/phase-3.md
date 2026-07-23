@@ -216,7 +216,8 @@ flowchart TD
     S4 --> S4_5
     S4_5 --> S5[Slice 5: Ink UI]
     S5 --> S6[Slice 6: Observability Panels]
-    S6 --> S7[Slice 7: Polish and Publish]
+    S6 --> S6_5[Slice 6.5: Config Fidelity]
+    S6_5 --> S7[Slice 7: Polish and Publish]
 ```
 
 ---
@@ -229,9 +230,9 @@ flowchart TD
 
 We are **not** opening a PR per slice. Slice boundaries remain the implementation and commit cadence (clear commit messages, local acceptance checks), but review and merge happen once via a **major PR** after the planned slices are complete (through Slice 7 polish, or when the branch is otherwise ready to ship against `development`).
 
-| Slice                 | Work lands on       |
-| --------------------- | ------------------- |
-| Slice 1–7 (incl. 4.5) | `phase3/jerry-term` |
+| Slice                      | Work lands on       |
+| -------------------------- | ------------------- |
+| Slice 1–7 (incl. 4.5, 6.5) | `phase3/jerry-term` |
 
 **Workflow:**
 
@@ -1168,6 +1169,120 @@ const getLatencyColor = (ms: number) => {
 
 ---
 
+## Slice 6.5: Config Fidelity (Ozwell / OpenAI BYO)
+
+**Status:** Implemented
+
+**Goal:** Make runtime/model/API-key configuration actually drive the live bridge for Ozwell and OpenAI-compatible BYO cloud. agent-runtime already supports these backends; jerry-term’s `/config` and `/runtime` commands need to apply profile changes (and optionally persist them).
+
+**Out of scope (deferred to Phase 3.1 / post-publish):**
+
+- Cloud worker message queue (`/enqueue` → `JOBS`) — already owned by jerry-app + `jerry` CLI; jerry-term stays in-process agent-runtime for v0.1
+- Session id in status bar + `-s <session-id>` resume — requires worker attach (`JERRY_URL` + cloud-agent client), not a local cosmetic UUID
+- Bundling the cloud queue inside jerry-term — not viable without a running worker; call the worker later, do not embed it
+
+**Files:**
+
+- `packages/jerry-term/src/commands/runtime.ts`
+- `packages/jerry-term/src/commands/config.ts`
+- `packages/jerry-term/src/commands/apply-config.ts`
+- `packages/jerry-term/src/bridge/jerry-bridge.ts` (profile-aware switch if needed)
+- `packages/jerry-term/src/config/loader.ts` (write-back / save)
+- `packages/jerry-term/src/config/types.ts`
+- `packages/jerry-term/README.md` (Ozwell + OpenAI setup)
+- `packages/jerry-term/src/commands/commands.test.ts`
+
+**Tasks:**
+
+- [x] When `/config model|apiKey|endpoint|egress` changes, rebuild/switch the bridge profile (not only in-memory TermConfig)
+- [x] Extend `/runtime` so optional model / key / endpoint can be passed or pulled from current config
+- [x] Persist editable config to `~/.config/jerry-term/config.json` (or existing loader paths) on successful `/config` set
+- [x] Document Ozwell (`OZWELL_API_KEY`, endpoint) and OpenAI BYO (`OPENAI_API_KEY` / `JERRY_API_KEY`, model) setup in README
+- [x] Keep header/status showing active runtime + model after switches
+- [x] Unit tests for config → bridge apply + persist behavior
+
+**Acceptance:**
+
+- [x] `/runtime ozwell` with `OZWELL_API_KEY` set uses Ozwell (or documented local fallback)
+- [x] `/config model …` and `/config apiKey …` take effect on the next turn without restarting
+- [x] `/config` changes survive process restart when saved to the config file
+- [x] README documents Ozwell + OpenAI BYO env/config paths
+- [x] Local Ollama path unchanged
+
+**PR checklist:**
+
+- [x] `/config` updates apply to JerryBridge profile
+- [x] `/runtime` uses current TermConfig (model/key/endpoint) when switching
+- [x] Config persistence (save on set)
+- [x] README: Ozwell + OpenAI BYO setup
+- [x] Tests for config/runtime bridge wiring
+- [x] Deferred items explicitly noted (queue, `-s` sessions → Phase 3.1)
+
+---
+
+## Slice 6.6: Runtime/Model Tree Picker
+
+**Status:** Implemented
+
+**Goal:** Simplify runtime and model selection with a multi-credential vault and interactive tree picker. Users can set up local / Ozwell / BYO providers once and switch between them seamlessly without re-entering API keys.
+
+**Key features:**
+
+1. **Credentials vault** - `~/.config/jerry-term/config.json` now stores multiple API keys:
+   - `credentials.ozwell.apiKey` - Ozwell API key
+   - `credentials.byo.openai.apiKey` - OpenAI key
+   - `credentials.byo.moonshot.apiKey` - Moonshot/Kimi key
+   - `credentials.byo.custom.apiKey` + `baseURL` - Custom provider
+
+2. **Last model memory** - Remembers last-used model per runtime/provider:
+   - `lastModel.local` - Last Ollama model
+   - `lastModel.ozwell` - Last Ozwell model
+   - `lastModel.byo.openai` - Last OpenAI model, etc.
+
+3. **Provider registry** - Static definitions with curated model lists:
+   - `ollama` (local) - Live from `/api/tags`
+   - `ozwell` - Recommended chat models first (`gpt-4.1-mini`, `gpt-4o`, `gpt-5`, `claude-sonnet-5`, …); live `/v1/models` with collapsible “Other”
+   - `openai` (BYO) - GPT-4o, GPT-4 Turbo, o1-preview, etc.
+   - `moonshot` (BYO) - Moonshot v1 8K/32K/128K
+   - `custom` (BYO) - User-defined baseURL + model
+
+4. **Interactive picker** - TUI tree navigation:
+   - `/runtime` or `/rt` opens picker (no args)
+   - `/model` or `/m` opens model picker for current runtime
+   - ↑↓ navigate, Enter/→ select, Esc/← back
+   - Setup leaf for entering API keys with docs link
+   - Ozwell: recommended models first; `▶ Other models (N)` expands/collapses the rest
+
+5. **Commands enhanced:**
+   - `/runtime byo openai` - Direct switch with saved credentials
+   - `/model gpt-4o` - Set model, persists to lastModel
+   - `/config apiKey <key>` - Routes to active credential slot
+
+**Files:**
+
+- `packages/jerry-term/src/config/types.ts` - CredentialsVault, LastModelMap types
+- `packages/jerry-term/src/config/loader.ts` - Vault load/save, migration, availability
+- `packages/jerry-term/src/config/providers.ts` - Provider registry, `partitionOzwellModels`, toWireModel
+- `packages/jerry-term/src/config/list-ozwell-models.ts` - Live `GET /v1/models` + curated fallback
+- `packages/jerry-term/src/config/select.ts` - Selection and apply helpers
+- `packages/jerry-term/src/commands/runtime.ts` - Updated with tree picker
+- `packages/jerry-term/src/commands/model.ts` - New model command
+- `packages/jerry-term/src/commands/config.ts` - Routes apiKey to vault
+- `packages/jerry-term/src/ui/components/RuntimePicker.tsx` - TUI picker
+
+**Ozwell setup docs:** https://mieweb.github.io/ozwellai-api/backend/api-authentication/
+
+**Open issue / follow-up:**
+
+- [ ] **Confirm Ozwell model compatibility with Jerry** — Manager `/v1/models` returns a large enabled catalog (chat + embeddings/TTS/image/realtime/etc.). Listing ≠ Jerry-usable. Need to verify which models actually work end-to-end with Jerry’s Ozwell chat/streaming path (tool calling, SSE) under a typical `ozw_` key policy, and keep the recommended curated list aligned with that. Non-chat IDs should stay collapsed under “Other” until confirmed (or filtered out).
+
+**Out of scope:**
+
+- Native Anthropic SDK (OpenAI-compatible only in v1)
+- OS keychain integration (plain JSON, same trust model as before)
+
+---
+
 ## Slice 7: Polish and Publish
 
 **Status:** Not started
@@ -1184,7 +1299,7 @@ const getLatencyColor = (ms: number) => {
 
 **Tasks:**
 
-- woComplete README with installation, usage, and examples
+- Complete README with installation, usage, and examples
 - Add CLI argument parsing (`--version`, `--help`, `--runtime`, `--verbose`)
 - Create user guide documentation
 - Set up npm publish workflow (manual trigger; uses org `NPM_TOKEN` secret — not a personal token)
@@ -1193,7 +1308,7 @@ const getLatencyColor = (ms: number) => {
 - Attach or link a short screen recording in the PR showing dry-run + local global install + CLI smoke test
 - Verify Bun compatibility: `bun x jerry-term`
 - Add CHANGELOG for version tracking
-- Final QA pass on all features
+- Final QA pass on all features (include known open issue: sticky TUI / transcript scroll)
 - After merge: owner publishes (CLI or workflow) under MIEWEB npm ownership; do **not** publish from a collaborator personal account
 
 **CLI Arguments:**
@@ -1206,14 +1321,14 @@ Options:
   -h, --help             Show help
   -r, --runtime <kind>   Set initial runtime (local|ozwell|byo-cloud)
   --verbose              Enable debug output
-  --no-ui                Use basic REPL instead of Ink UI
+  --no-ui                Use basic REPL instead of OpenTUI UI
   --config <path>        Custom config file path
 
 Examples:
   jerry-term                          # Start interactive REPL
   jerry-term "summarize my day"       # One-shot query
   jerry-term -r ozwell                # Start with Ozwell runtime
-  jerry-term --no-ui                  # Basic mode (no Ink)
+  jerry-term --no-ui                  # Basic mode (no OpenTUI)
 ```
 
 **Acceptance:**
@@ -1343,16 +1458,17 @@ packages/jerry-term/
 
 ## Slice Summary
 
-| Slice               | Goal                  | Est. Files | Key Deliverable                     |
-| ------------------- | --------------------- | ---------- | ----------------------------------- |
-| 1. Project Scaffold | Build setup           | 6          | Bundled package that builds         |
-| 2. Bridge Layer     | Jerry abstraction     | 4          | JerryBridge class                   |
-| 3. Health Checks    | Diagnostics           | 8          | `/health` command                   |
-| 4. Basic REPL       | Core interaction      | 11         | Working CLI with commands           |
-| 4.5. Local Tools    | Tool enablement       | 6          | summarize_activity via AW HTTP      |
-| 5. Ink UI           | Rich terminal + theme | 12         | Full-screen UI with design system   |
-| 6. Observability    | Real-time visibility  | 7          | Tool/thinking panels with tree view |
-| 7. Polish & Publish | Ship it               | 5          | Pack-ready PR + owner npm publish   |
+| Slice                | Goal                  | Est. Files | Key Deliverable                     |
+| -------------------- | --------------------- | ---------- | ----------------------------------- |
+| 1. Project Scaffold  | Build setup           | 6          | Bundled package that builds         |
+| 2. Bridge Layer      | Jerry abstraction     | 4          | JerryBridge class                   |
+| 3. Health Checks     | Diagnostics           | 8          | `/health` command                   |
+| 4. Basic REPL        | Core interaction      | 11         | Working CLI with commands           |
+| 4.5. Local Tools     | Tool enablement       | 6          | summarize_activity via AW HTTP      |
+| 5. Ink UI            | Rich terminal + theme | 12         | Full-screen UI with design system   |
+| 6. Observability     | Real-time visibility  | 7          | Tool/thinking panels with tree view |
+| 6.5. Config Fidelity | Ozwell / OpenAI BYO   | 6          | `/config` + `/runtime` drive bridge |
+| 7. Polish & Publish  | Ship it               | 5          | Pack-ready PR + owner npm publish   |
 
 ---
 
@@ -1374,7 +1490,8 @@ packages/jerry-term/
 ## Post-Phase 3 Considerations
 
 - **Mobile thin client:** Could share bridge logic with React Native
-- **Web UI:** Ink components may inform web terminal design
+- **Web UI:** OpenTUI / terminal patterns may inform web terminal design
 - **Plugin system:** Commands could be extensible via npm packages
 - **Themes:** Color schemes configurable in config file
-- **Session persistence:** Save/restore conversation history
+- **Cloud attach (Phase 3.1):** `JERRY_URL` + cloud-agent client for worker `/messages` and `/enqueue`; status-bar session id; `-s <session-id>` resume (reuse main `jerry` CLI patterns — do not bundle the worker into jerry-term)
+- **Local session persistence:** Optional disk-backed transcripts without worker (separate from cloud resume)

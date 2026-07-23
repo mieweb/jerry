@@ -7,8 +7,16 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import type { JerryBridge } from "../bridge/index.ts";
-import type { TermConfig } from "../config/index.ts";
-import type { CommandRegistry } from "../commands/index.ts";
+import type { TermConfig, ByoProviderId } from "../config/index.ts";
+import type { CommandRegistry, OpenPickerOptions } from "../commands/index.ts";
+import type { RuntimeKind } from "@mieweb/jerry-agent-runtime";
+import {
+    saveTermConfig,
+    setupCredentials,
+    switchModel,
+    selectRuntime,
+    fromWireModel,
+} from "../config/index.ts";
 import { getTheme } from "./theme/index.ts";
 import { useBridge } from "./hooks/useBridge.ts";
 import { useRepl } from "./hooks/useRepl.ts";
@@ -18,6 +26,11 @@ import {
     CommandDropdown,
     useCommandDropdown,
 } from "./components/CommandDropdown.tsx";
+import {
+    RuntimePicker,
+    useRuntimePicker,
+    type PickerNode,
+} from "./components/RuntimePicker.tsx";
 
 const VERSION = "0.1.0";
 
@@ -79,6 +92,86 @@ export function App({
     const scrollboxRef = useRef<ScrollBoxRenderable | null>(null);
 
     const { state: bridgeState } = useBridge(bridge);
+
+    const [currentConfig, setCurrentConfig] = useState(config);
+    const configRef = useRef(currentConfig);
+    configRef.current = currentConfig;
+
+    const pickerCallbacks = React.useMemo(
+        () => ({
+            onSelect: (node: PickerNode) => {
+                if (!node.model || !node.runtime) return;
+
+                // Align active runtime/provider with the picked branch first.
+                let next = configRef.current;
+                if (
+                    next.runtime !== node.runtime ||
+                    (node.runtime === "byo-cloud" &&
+                        next.provider !== node.provider)
+                ) {
+                    const selected = selectRuntime(
+                        next,
+                        node.runtime,
+                        node.provider
+                    );
+                    next = selected.success
+                        ? selected.config
+                        : {
+                              ...next,
+                              runtime: node.runtime,
+                              provider: node.provider,
+                          };
+                }
+
+                const result = switchModel(
+                    bridge,
+                    next,
+                    node.model,
+                    undefined,
+                    saveTermConfig
+                );
+                setCurrentConfig(result.config);
+            },
+            onSetupComplete: (
+                runtime: RuntimeKind,
+                provider: ByoProviderId | undefined,
+                apiKey: string,
+                baseURL?: string
+            ) => {
+                // Persist credentials only; picker keeps open and drills to models.
+                const result = setupCredentials(
+                    configRef.current,
+                    runtime,
+                    provider,
+                    { apiKey, baseURL }
+                );
+                if (result.success) {
+                    saveTermConfig(result.config);
+                    setCurrentConfig(result.config);
+                }
+            },
+            onCancel: () => {},
+        }),
+        [bridge]
+    );
+
+    const runtimePicker = useRuntimePicker(
+        currentConfig,
+        pickerCallbacks
+    );
+
+    const openPicker = useCallback(
+        (options: OpenPickerOptions) => {
+            runtimePicker.open({
+                mode: options.mode === "setup" ? "setup" : options.mode,
+                runtime: options.runtime,
+                provider: options.provider,
+            });
+        },
+        [runtimePicker]
+    );
+
+    const replState = useRepl(bridge, currentConfig, registry, onExit, openPicker);
     const {
         inputValue,
         setInputValue,
@@ -93,7 +186,13 @@ export function App({
         clearTranscript,
         exitApp,
         observability,
-    } = useRepl(bridge, config, registry, onExit);
+    } = replState;
+
+    useEffect(() => {
+        if (replState.config !== currentConfig) {
+            setCurrentConfig(replState.config);
+        }
+    }, [replState.config, currentConfig]);
 
     const allCommands = registry.getAll();
     const commandDropdown = useCommandDropdown(
@@ -133,8 +232,17 @@ export function App({
                 ? Math.min(commandDropdown.filteredCommands.length, 8) + 2
                 : 3
             : 0;
+    // Reserve space for runtime picker when open
+    const pickerRows =
+        runtimePicker.state.isOpen && !busy
+            ? runtimePicker.state.setupMode
+                ? runtimePicker.state.provider === "custom"
+                    ? 9
+                    : 7
+                : Math.min(runtimePicker.state.nodes.length, 10) + 4
+            : 0;
     const centerHeight = Math.max(
-        height - CHROME_ROWS - thinkingRows - toolsRows - dropdownRows,
+        height - CHROME_ROWS - thinkingRows - toolsRows - dropdownRows - pickerRows,
         5,
     );
 
@@ -191,6 +299,14 @@ export function App({
             return;
         }
 
+        // Handle runtime picker navigation when open
+        if (runtimePicker.state.isOpen) {
+            if (runtimePicker.onKey(event)) {
+                event.preventDefault();
+                return;
+            }
+        }
+
         // Handle command dropdown navigation when open (with preventDefault)
         if (commandDropdown.onKey(event)) {
             event.preventDefault();
@@ -198,7 +314,7 @@ export function App({
         }
 
         // History navigation when dropdown is not open
-        if (!commandDropdown.isOpen) {
+        if (!commandDropdown.isOpen && !runtimePicker.state.isOpen) {
             if (event.name === "up") {
                 event.preventDefault();
                 handleHistoryUp();
@@ -327,21 +443,36 @@ export function App({
                             marginTop={
                                 line.type === "user" && index > 0 ? 1 : 0
                             }
+                            flexDirection="column"
                         >
-                            <text
-                                style={{
-                                    fg: getLineColor(line.type, theme.colors),
-                                }}
-                            >
-                                {getLinePrefix(line.type)}
-                                {line.content}
-                            </text>
+                            <box flexDirection="row">
+                                <text
+                                    style={{
+                                        fg: getLineColor(
+                                            line.type,
+                                            theme.colors
+                                        ),
+                                    }}
+                                >
+                                    {getLinePrefix(line.type)}
+                                    {line.content}
+                                </text>
+                            </box>
+                            {line.type === "user" && line.model ? (
+                                <text style={{ fg: theme.colors.textMuted }}>
+                                    {"  → "}[{line.runtime}] {line.model}
+                                </text>
+                            ) : null}
                         </box>
                     ))}
                     {streamingContent ? (
-                        <box width="100%">
+                        <box width="100%" flexDirection="column">
                             <text style={{ fg: theme.colors.textPrimary }}>
                                 {streamingContent}
+                            </text>
+                            <text style={{ fg: theme.colors.textMuted }}>
+                                {"  → "}[{bridgeState.runtimeKind}]{" "}
+                                {fromWireModel(bridgeState.model)}
                             </text>
                         </box>
                     ) : null}
@@ -349,7 +480,7 @@ export function App({
             </PanelLayout>
 
             {/* Command Dropdown - appears above input when typing "/" */}
-            {commandDropdown.isOpen && !busy && (
+            {commandDropdown.isOpen && !busy && !runtimePicker.state.isOpen && (
                 <CommandDropdown
                     key={`dropdown-${commandDropdown.filter}`}
                     commands={commandDropdown.filteredCommands}
@@ -357,6 +488,17 @@ export function App({
                     colors={theme.colors}
                     width={width - 2}
                     filter={commandDropdown.filter}
+                />
+            )}
+
+            {/* Runtime Picker - appears when /runtime or /model opens it */}
+            {runtimePicker.state.isOpen && !busy && (
+                <RuntimePicker
+                    state={runtimePicker.state}
+                    colors={theme.colors}
+                    width={width - 2}
+                    onApiKeyInput={runtimePicker.setSetupApiKey}
+                    onBaseURLInput={runtimePicker.setSetupBaseURL}
                 />
             )}
 
