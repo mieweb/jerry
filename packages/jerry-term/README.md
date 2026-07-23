@@ -84,18 +84,31 @@ All commands start with `/`:
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `/runtime <kind>` | `/rt` | Switch runtime: `local`, `ozwell`, `byo-cloud` |
+| `/runtime [kind] [model]` | `/rt` | Show available runtimes or switch to `local`, `ozwell`, `byo-cloud` |
 | `/health` | `/hc` | Run system health checks |
 | `/aw-tail [limit] [bucket]` | `/aw`, `/activity` | Peek latest ActivityWatch events (connectivity check) |
-| `/config [key] [value]` | `/cfg` | View or update configuration |
+| `/config [key] [value]` | `/cfg` | View or update configuration (persisted to config file) |
 | `/help [command]` | `/h`, `/?` | Show help |
 | `/exit` | `/q`, `/quit` | Exit the CLI |
+
+**Note:** Configuration changes via `/config` and `/runtime` take effect on the next turn and are automatically persisted to `~/.config/jerry-term/config.json`.
 
 ### Examples
 
 ```bash
-# Switch to Ozwell runtime
+# View available runtimes and their status
+> /runtime
+Current runtime: local
+Current model:   ollama:llama3.1:8b
+
+Available runtimes:
+  * local      [ready] model: ollama:llama3.1:8b
+    ozwell     [not configured] (set API key via /config apiKey or env)
+    byo-cloud  [not configured] (set API key via /config apiKey or env)
+
+# Switch to Ozwell runtime (with optional model override)
 > /runtime ozwell
+> /runtime ozwell gpt-4.1-mini
 
 # Check system health
 > /health
@@ -108,8 +121,11 @@ All commands start with `/`:
 # View current configuration
 > /config
 
-# Set a specific config value
+# Set configuration values (persisted to config file)
 > /config model gpt-4.1-mini
+> /config apiKey ozw_your_key
+> /config endpoint https://custom.api.endpoint
+> /config runtime byo-cloud
 
 # Get help on a specific command
 > /help runtime
@@ -153,6 +169,7 @@ JERRY_RUNTIME=local \
 
 Uses Ozwell as the cloud model provider.
 
+**Via environment variables:**
 ```bash
 JERRY_RUNTIME=ozwell \
   JERRY_MODEL=gpt-4.1-mini \
@@ -160,10 +177,22 @@ JERRY_RUNTIME=ozwell \
   jerry-term
 ```
 
+**Via interactive commands:**
+```bash
+# Start jerry-term, then:
+> /config apiKey ozw_your_key
+> /runtime ozwell gpt-4.1-mini
+```
+
+**API key resolution order:** `OZWELL_API_KEY` > `OZWELL_AGENT_KEY` > `JERRY_API_KEY` > config file
+
+**Endpoint resolution:** `JERRY_ENDPOINT` > `OZWELL_ENDPOINT` > default
+
 If Ozwell is unavailable, jerry-term falls back to local Ollama automatically.
 
 ### 3. BYO-Cloud (Custom OpenAI-compatible endpoint)
 
+**Via environment variables:**
 ```bash
 JERRY_RUNTIME=byo-cloud \
   JERRY_MODEL='https://api.openai.com/v1#gpt-4o' \
@@ -171,33 +200,62 @@ JERRY_RUNTIME=byo-cloud \
   jerry-term
 ```
 
+**Via interactive commands:**
+```bash
+# Start jerry-term, then:
+> /config apiKey sk-your_openai_key
+> /config model https://api.openai.com/v1#gpt-4o
+> /runtime byo-cloud
+```
+
+**API key resolution order:** `JERRY_API_KEY` > `OPENAI_API_KEY` > config file
+
+**Model format:** Use `https://endpoint#model-name` to specify both endpoint and model, or set them separately with `/config endpoint` and `/config model`.
+
 ## Environment Variables
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
 | `JERRY_RUNTIME` | Runtime backend | `local`, `ozwell`, `byo-cloud` |
 | `JERRY_MODEL` | Model identifier | `ollama:qwen2.5:3b`, `gpt-4.1-mini` |
+| `JERRY_API_KEY` | Generic API key (all runtimes) | `ozw_...`, `sk-...` |
+| `JERRY_ENDPOINT` | Custom API endpoint (overrides all) | `https://...` |
+| `JERRY_EGRESS` | Egress policy | `local`, `cloud` |
 | `OZWELL_API_KEY` | Ozwell API key | `ozw_...` |
+| `OZWELL_AGENT_KEY` | Ozwell agent key (alternative) | `ozw_...` |
 | `OZWELL_ENDPOINT` | Ozwell API endpoint | `https://ozwellapi.os.mieweb.org` |
 | `OPENAI_API_KEY` | OpenAI/BYO-cloud API key | `sk-...` |
-| `JERRY_ENDPOINT` | Custom API endpoint | `https://...` |
+
+**Priority:** Environment variables override config file settings. Config file values are used as fallbacks.
 
 ## Config File
 
-jerry-term looks for configuration in these locations (in order):
+jerry-term looks for configuration in these locations (in order of precedence):
 
-1. `./.jerry-term.json` (current directory)
-2. `~/.config/jerry-term/config.json`
-3. `~/.jerry-term.json`
+1. `./.jerry-term.json` (current directory — highest file precedence)
+2. `~/.config/jerry-term/config.json` (user config — written by `/config` commands)
+3. `~/.jerry-term.json` (legacy location)
 
-Example config file:
-
+**Minimal config:**
 ```json
 {
   "runtime": "local",
   "model": "ollama:qwen2.5:3b"
 }
 ```
+
+**Full config with all options:**
+```json
+{
+  "runtime": "ozwell",
+  "model": "gpt-4.1-mini",
+  "apiKey": "ozw_your_api_key",
+  "endpoint": "https://custom.ozwell.endpoint",
+  "egress": "cloud"
+}
+```
+
+**Persistence:** When you use `/config` or `/runtime` commands, changes are automatically saved to `~/.config/jerry-term/config.json`. These persist across sessions but can still be overridden by environment variables.
 
 ## Available Tools
 
@@ -321,6 +379,16 @@ The full-screen UI captures keyboard input. To copy text from the transcript:
 If you see `[jerry] Ozwell unavailable...`, jerry-term will automatically fall back to local Ollama. Check:
 - Your `OZWELL_API_KEY` is valid
 - The Ozwell endpoint is reachable
+
+## Limitations (Phase 3.1 Deferred)
+
+The following features are planned but not yet available in jerry-term:
+
+- **Cloud worker queue** (`/enqueue`): Offloading long-running tasks to the jerry-app worker queue is handled by the `jerry` CLI, not jerry-term. jerry-term stays in-process for v0.1.
+- **Session resume** (`-s <session-id>`): Resuming previous conversations requires the cloud worker. This will be added when jerry-term gains a cloud-agent client.
+- **Embedded worker**: jerry-term does not bundle a worker process; it relies on agent-runtime directly.
+
+See [`docs/plans/phase-3.md`](../../docs/plans/phase-3.md) for the full roadmap.
 
 ## License
 
