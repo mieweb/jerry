@@ -12,18 +12,22 @@ import { createSearchMemoryTool } from "./search-memory.js";
 import { createScheduleFollowupTool } from "./schedule-followup.js";
 import { createReadFileTool, createListWatchedTool } from "./file-tools.js";
 import { createIndexDocumentTool } from "./index-document.js";
+import { wrapToolsWithAsk } from "./wrap-ask.js";
 
-export type { ToolContext, StoredActivityEvent } from "./types.js";
+export type { ToolContext, StoredActivityEvent, ToolEgress, ApprovalStore } from "./types.js";
 export { createSummarizeActivityTool } from "./summarize-activity.js";
 export { createSearchMemoryTool } from "./search-memory.js";
 export { createScheduleFollowupTool } from "./schedule-followup.js";
 export { createReadFileTool, createListWatchedTool } from "./file-tools.js";
 export { createIndexDocumentTool } from "./index-document.js";
 export { getEmbedding, isOllamaAvailable } from "./embeddings.js";
+export { wrapToolWithAsk, wrapToolsWithAsk, type WaitingForApprovalResult } from "./wrap-ask.js";
 
 export interface CreateJerryToolsOptions {
   /** Optional MCP tools to merge (e.g. from footnote adapter) */
   mcpTools?: ToolSet;
+  /** Whether to wrap tools with ask-disposition approval flow */
+  wrapAsk?: boolean;
 }
 
 /**
@@ -47,9 +51,15 @@ export function createJerryTools(
   };
 
   // Merge MCP tools if provided (they take precedence for overlapping names)
+  let tools: ToolSet = coreTools;
   if (options?.mcpTools) {
-    return { ...coreTools, ...options.mcpTools };
+    tools = { ...coreTools, ...options.mcpTools };
   }
 
-  return coreTools;
+  // Wrap tools with ask-disposition approval flow if enabled
+  if (options?.wrapAsk && ctx.dispositions && ctx.approvalStore) {
+    tools = wrapToolsWithAsk(tools, ctx);
+  }
+
+  return tools;
 }

@@ -16,12 +16,19 @@ import { jerry } from "../src/agent.ts";
 import {
   createJerryToolsWithMcp,
   ensureMcpTools,
+  grantPendingApproval,
+  getPendingToolName,
 } from "../src/create-tools.ts";
 
 /**
  * Preload MCP tools before agent turns that need external search.
+ * Also handles granting pending approvals on resume from waiting_for_approval.
+ *
+ * @param {Request} request
+ * @param {URL} url
+ * @param {Env} env
  */
-async function prepareMcpForRequest(request, url) {
+async function prepareMcpForRequest(request, url, env) {
   if (request.method !== "POST") return;
   if (
     !url.pathname.includes("/v1/sessions/") ||
@@ -30,9 +37,39 @@ async function prepareMcpForRequest(request, url) {
     return;
   }
 
+  // Extract session ID from URL: /v1/sessions/:id/messages
+  const sessionMatch = url.pathname.match(/\/v1\/sessions\/([^/]+)\//);
+  const sessionId = sessionMatch?.[1];
+
   try {
     const body = await request.clone().json();
     await ensureMcpTools(body.profile);
+
+    // Check if this is a resume from waiting_for_approval and grant the pending tool
+    if (sessionId && env.DB) {
+      const session = await env.DB
+        .prepare("SELECT status FROM sessions WHERE id = ?")
+        .bind(sessionId)
+        .first();
+
+      if (session?.status === "waiting_for_approval") {
+        // Create minimal context for approval operations
+        const ctx = {
+          sessionId,
+          db: env.DB,
+          vectors: env.VECTORS,
+          bucket: env.BUCKET,
+          scheduleWake: async () => {},
+          suspendForUser: () => {},
+          suspendForApproval: () => {},
+        };
+
+        const pendingTool = await getPendingToolName(ctx);
+        if (pendingTool) {
+          await grantPendingApproval(ctx, pendingTool);
+        }
+      }
+    }
   } catch {
     await ensureMcpTools();
   }
@@ -191,7 +228,7 @@ export default {
     // Delegate to hostAgent for all agent routes
     // Routes: /v1/sessions/:id/messages, /v1/sessions/:id/enqueue, /v1/sessions/:id/status, /v1/events
     try {
-      await prepareMcpForRequest(request, url);
+      await prepareMcpForRequest(request, url, env);
       return await host.handleFetch(request, env);
     } catch (err) {
       console.error("Fetch error:", err);

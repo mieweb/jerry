@@ -45,8 +45,9 @@ export const DEFAULT_PRIVACY_PROFILE: PrivacyProfile = {
         search_fts: "local",
         search_literal: "local",
         read_document: "local",
-        drive: "ask",
-        youtube: "ask",
+        read_drive: "ask",
+        post_youtube: "ask",
+        fetch_youtube: "ask",
     },
 };
 
