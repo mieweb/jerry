@@ -60,7 +60,7 @@ jerry-term --verbose "what did I work on?"
 
 ## Runtime Configuration
 
-jerry-term supports four runtime backends:
+jerry-term supports three runtime backends:
 
 ### Local (Ollama) — Default
 
