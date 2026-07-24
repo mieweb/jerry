@@ -323,46 +323,197 @@ flowchart TD
 
 ## Slice 5: External Integrations
 
-**Branch:** `phase2/external-integrations`
+**Status:** Not started — branch from `development` (Slices 1–4 merged). Split into subslices below.
+
+**Umbrella branch:** `phase2/external-integrations` (or merge subslices into it for the final PR)
 
 **PR target:** `development`
 
-**Depends on:** Slice 2 (phase2/mcp-consume) for MCP-based integration patterns
+**Depends on:** Slice 2 (`phase2/mcp-consume`, merged) — tool factory / `ToolContext` patterns. Integrations themselves are native OAuth tools, not MCP servers.
 
-**Goal:** Add Google Drive, YouTube, and Time Huddle as tools with egress approval flow.
+**Goal:** Add Google Drive and YouTube as tools with egress approval flow. Shared OAuth + encrypted token storage. Time Huddle pinned until API availability is confirmed.
+
+**Pinned — Time Huddle:** Do **not** implement `read_timehuddle` / `post_timehuddle` until we confirm Time Huddle (vs TimeHarbor) API availability, auth model, and test accounts. Track as subslice **5e** below; un-pin when API is confirmed.
+
+```mermaid
+flowchart TD
+    S5a[5a Approval + egress ask] --> S5c[5c Google Drive]
+    S5b[5b OAuth + token store] --> S5c
+    S5b --> S5d[5d YouTube]
+    S5a --> S5d
+    S5b -.->|pinned| S5e[5e Time Huddle]
+    S5a -.->|pinned| S5e
+    S5c --> S5f[5f Wire + verify]
+    S5d --> S5f
+    S5e -.->|when unpinned| S5f
+```
+
+### Subslice 5a: Approval & `ask` egress
+
+**Branch:** `phase2/integrations-approval`
+
+**Depends on:** None (Slice 2 already on `development`)
+
+**Goal:** Make per-tool `egress: "ask"` real at call time.
+
+**Tasks:**
+
+- Wrapper before outbound tool execute: `suspendForApproval()` → session parks → user confirms → resume and run tool
+- Align profile disposition keys with tool names (`read_drive` / `post_youtube` / … vs legacy `drive` / `youtube`)
+- Surface `waiting_for_approval` clearly in CLI/host responses
+- Unit tests with a mock “ask” tool
+
+**Acceptance:** Dummy outbound tool suspends → user confirms → tool runs → session resumes.
+
+**PR checklist:**
+
+- [ ] Call-time `ask` wrapper implemented
+- [ ] Profile tool disposition keys aligned with tool names
+- [ ] `waiting_for_approval` surfaced to user
+- [ ] Mock ask-tool tests pass
+
+---
+
+### Subslice 5b: Shared OAuth + encrypted tokens
+
+**Branch:** `phase2/integrations-oauth`
+
+**Depends on:** None (can parallel 5a)
+
+**Goal:** Shared auth plumbing for Google (and later Time Huddle if OAuth).
+
+**Files:**
+
+- `packages/tools/src/integrations/oauth.ts` (new)
+
+**Tasks:**
+
+- OAuth helper (authorize, refresh, load/store)
+- Encrypt-at-rest token store in session/profile; never log secrets
+- Mock OAuth tests (no live Google required)
+
+**Acceptance:** Obtain → store → refresh → load token works in unit tests.
+
+**PR checklist:**
+
+- [ ] Shared OAuth helper module functional
+- [ ] OAuth token storage encrypted at rest
+- [ ] Mock OAuth tests pass
+
+---
+
+### Subslice 5c: Google Drive
+
+**Branch:** `phase2/integrations-drive`
+
+**Depends on:** 5a + 5b
+
+**Goal:** `read_drive` (list/fetch files) via Google OAuth2.
 
 **Files:**
 
 - `packages/tools/src/integrations/drive.ts` (new)
-- `packages/tools/src/integrations/youtube.ts` (new)
-- `packages/tools/src/integrations/timehuddle.ts` (new)
-- `packages/tools/src/integrations/oauth.ts` (new: shared OAuth helper)
 
 **Tasks:**
 
-- **Google Drive:** `read_drive` (list/fetch files), OAuth2 flow
-- **YouTube:** `post_youtube` (upload video), `fetch_youtube` (get video metadata)
-- **Time Huddle:** `read_timehuddle` (get meetings), `post_timehuddle` (create note)
-- Wire into `createJerryTools()` with `egress: "ask"` disposition by default
-- Implement `suspendForApproval()` flow — tool requests approval, session suspends, user grants, session resumes
-- Store OAuth tokens in session/profile (encrypted at rest)
-- Test: mock API responses; manual integration test with real accounts
+- Implement `read_drive`; register in `createJerryTools()` with `ask` disposition
+- Mock Drive API tests
+- Manual: `jerry what files did I share today`
 
-**Acceptance:**
-
-- `jerry upload this to youtube` → approval prompt → user confirms → video uploaded
-- `jerry what files did I share today` → Drive API queried → results returned
+**Acceptance:** Drive query runs after approval and returns results.
 
 **PR checklist:**
 
-- [ ] Google Drive tools (`read_drive`) implemented with OAuth2
-- [ ] YouTube tools (`post_youtube`, `fetch_youtube`) implemented
-- [ ] Time Huddle tools (`read_timehuddle`, `post_timehuddle`) implemented
-- [ ] Shared OAuth helper module functional
-- [ ] `suspendForApproval()` flow working end-to-end
-- [ ] OAuth token storage encrypted
-- [ ] Mock API tests pass; manual integration tests documented
-- [ ] Acceptance scenarios verified manually
+- [ ] `read_drive` implemented with OAuth2
+- [ ] Wired into `createJerryTools()` with `ask`
+- [ ] Mock API tests pass; manual scenario verified
+
+---
+
+### Subslice 5d: YouTube
+
+**Branch:** `phase2/integrations-youtube`
+
+**Depends on:** 5a + 5b (can parallel 5c after those land)
+
+**Goal:** `post_youtube` (upload), `fetch_youtube` (metadata).
+
+**Files:**
+
+- `packages/tools/src/integrations/youtube.ts` (new)
+
+**Tasks:**
+
+- Implement upload + metadata tools; `ask` by default
+- Mock YouTube API tests
+- Manual upload with approval
+
+**Acceptance:** `jerry upload this to youtube` → approval prompt → user confirms → video uploaded.
+
+**PR checklist:**
+
+- [ ] `post_youtube` and `fetch_youtube` implemented
+- [ ] Wired into `createJerryTools()` with `ask`
+- [ ] Mock API tests pass; manual upload verified
+
+---
+
+### Subslice 5e: Time Huddle — **PINNED**
+
+**Branch:** `phase2/integrations-timehuddle` (when unpinned)
+
+**Depends on:** 5a + 5b, **plus** confirmed API availability / auth / test accounts
+
+**Status:** Pinned — confirm Time Huddle (vs TimeHarbor) API before starting.
+
+**Goal (when unpinned):** `read_timehuddle` (meetings), `post_timehuddle` (create note).
+
+**Files:**
+
+- `packages/tools/src/integrations/timehuddle.ts` (new)
+
+**Tasks (when unpinned):**
+
+- Confirm product surface, API docs, and auth model
+- Implement tools; reuse 5b patterns; `ask` by default
+- Mock + documented manual test
+
+**Acceptance (when unpinned):** Read meetings and create note both work behind approval.
+
+**PR checklist:**
+
+- [ ] API availability and auth model confirmed (unblocks this subslice)
+- [ ] `read_timehuddle` / `post_timehuddle` implemented
+- [ ] Mock API tests pass; manual integration documented
+
+---
+
+### Subslice 5f: Wire, docs, slice closeout
+
+**Branch:** merge into `phase2/external-integrations` (final PR)
+
+**Depends on:** 5c + 5d (and 5e only if unpinned)
+
+**Goal:** Slice 5 acceptance for Drive + YouTube; update plan status.
+
+**Tasks:**
+
+- Default profile dispositions for shipped integration tools
+- Document mock vs live manual integration tests
+- Update this plan’s checklist / status
+- Time Huddle remains out of scope until 5e is unpinned
+
+**Acceptance:**
+
+- `jerry upload this to youtube` → approval → upload
+- `jerry what files did I share today` → Drive results
+
+**PR checklist:**
+
+- [ ] Drive + YouTube acceptance scenarios verified manually
+- [ ] Manual integration tests documented
+- [ ] Phase-2 plan status updated
+- [ ] Time Huddle still pinned (or 5e completed if unblocked)
 
 ---
 
@@ -508,7 +659,7 @@ flowchart TD
 | 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                    |
 | 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                         |
 | 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                  |
-| 5. Integrations              | `phase2/external-integrations` | Slice 2      | 5          | Drive, YouTube, Time Huddle                 |
+| 5. Integrations              | `phase2/external-integrations` | Slice 2      | 5a–5f      | Drive + YouTube + ask/OAuth; Time Huddle pinned |
 | 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                   |
 | 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os              |
 | 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                         |
@@ -521,7 +672,7 @@ flowchart TD
 - Jerry consumes footnote MCP server for hybrid search
 - Jerry exposes tools as MCP server (Cursor integration documented)
 - All three runtime backends (`local`, `byo-cloud`, `ozwell`) functional
-- Drive, YouTube, Time Huddle integrations with approval flow
+- Drive and YouTube integrations with approval flow (Time Huddle pinned until API confirmed)
 - Webhooks trigger agent turns
 - Scheduled digests fire without external trigger
 - Production deploy on Cloudflare and mieweb/os
