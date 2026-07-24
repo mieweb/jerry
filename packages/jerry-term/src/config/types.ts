@@ -176,7 +176,7 @@ export function clearCredential(
   provider?: ByoProviderId
 ): TermConfig {
   const credentials: CredentialsVault = { ...config.credentials };
-  let newConfig = { ...config };
+  const newConfig = { ...config };
 
   if (runtime === "ozwell") {
     delete credentials.ozwell;

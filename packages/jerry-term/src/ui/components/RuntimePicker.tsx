@@ -1223,7 +1223,7 @@ export function useRuntimePicker(
               } else if (runtime === "anthropic") {
                 void loadAnthropicModels(true, apiKey);
               }
-            } catch (error) {
+            } catch {
               // If validation fails, stay in setup mode and show error
               // The error message will be shown by the caller
             }

@@ -87,6 +87,7 @@ describe("JerryBridge", () => {
       bridge.events.on((e) => events.push(e));
 
       // Consume all events from the turn
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const _event of bridge.runTurn({ messages: [] })) {
         // Just consume events
       }
@@ -101,6 +102,7 @@ describe("JerryBridge", () => {
     it("clears activeTurn after completion", async () => {
       const bridge = new JerryBridge();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const _event of bridge.runTurn({ messages: [] })) {
         // Consume
       }

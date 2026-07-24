@@ -31,7 +31,7 @@ export function useBridge(bridge: JerryBridge): UseBridgeResult {
   useEffect(() => {
     const unsubscribe = bridge.events.on((event) => {
       switch (event.type) {
-        case "runtime-switched":
+        case "runtime-switched": {
           const newProfile = bridge.getProfile();
           setState((prev) => ({
             ...prev,
@@ -39,6 +39,7 @@ export function useBridge(bridge: JerryBridge): UseBridgeResult {
             model: newProfile.model,
           }));
           break;
+        }
         case "turn-start":
           setState((prev) => ({ ...prev, busy: true }));
           break;

@@ -94,7 +94,7 @@ export function selectRuntime(
     };
   }
 
-  let newConfig: TermConfig = {
+  const newConfig: TermConfig = {
     ...config,
     runtime,
     provider:

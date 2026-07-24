@@ -91,7 +91,7 @@ function migrateToCredentialsVault(
 }
 
 export function loadTermConfig(): TermConfig {
-  let config: TermConfig = { ...DEFAULT_CONFIG };
+  const config: TermConfig = { ...DEFAULT_CONFIG };
   let needsMigration = false;
 
   // Try config files (lowest precedence first, so later ones override)
@@ -365,7 +365,7 @@ export function getByoProviderAvailability(config?: TermConfig): ByoProviderAvai
  * Minimal config load for availability checks (no env resolution for apiKey).
  */
 function loadTermConfigForAvailability(): TermConfig {
-  let config: TermConfig = { ...DEFAULT_CONFIG };
+  const config: TermConfig = { ...DEFAULT_CONFIG };
 
   const paths = getConfigPaths().reverse();
   for (const path of paths) {

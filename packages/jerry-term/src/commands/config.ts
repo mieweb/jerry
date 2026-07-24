@@ -150,7 +150,7 @@ export const configCommand: Command = {
       } else {
         ctx.output.writeLine(`Set ${key} = ${value} (saved)`);
       }
-    } catch (err) {
+    } catch {
       ctx.output.writeLine(`Set ${key} = ${key === "apiKey" ? maskApiKey(value) : value} (in-memory only, save failed)`);
     }
   },

@@ -540,6 +540,7 @@ export function App({
                         focused
                         value={inputValue}
                         onInput={setInputValue}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         onSubmit={onInputSubmit as any}
                         style={{ flexGrow: 1 }}
                     />
