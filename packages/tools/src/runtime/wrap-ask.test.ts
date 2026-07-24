@@ -127,7 +127,7 @@ describe("wrapToolWithAsk", () => {
     const result = (await wrapped.execute?.(
       { input: "test" },
       {} as never
-    )) as { status: string };
+    )) as unknown as { status: string };
 
     assert.equal(executeCalled, false);
     assert.equal(result?.status, "waiting_for_approval");
