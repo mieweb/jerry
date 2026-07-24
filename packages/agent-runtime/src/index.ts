@@ -31,4 +31,5 @@ export { resolveRuntime } from "./resolve-runtime.ts";
 export { createLocalRuntime } from "./backends/local.ts";
 export { createByoCloudRuntime } from "./backends/byo-cloud.ts";
 export { createOzwellRuntime } from "./backends/ozwell.ts";
+export { createAnthropicRuntime } from "./backends/anthropic.ts";
 export { filterTools } from "./backends/filter-tools.ts";

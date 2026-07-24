@@ -131,6 +131,7 @@ export function mergeProfile(
  *
  * Priority for byo-cloud: profile.apiKey → JERRY_API_KEY → OPENAI_API_KEY
  * Priority for ozwell: profile.apiKey → OZWELL_API_KEY → OZWELL_AGENT_KEY
+ * Priority for anthropic: profile.apiKey → ANTHROPIC_API_KEY
  *
  * Parent `ozw_` keys are preferred for Jerry: Ozwell is only the model endpoint,
  * and Jerry keeps the local tool loop. Agent keys (`agnt_key-`) inject Ozwell-side
@@ -151,6 +152,10 @@ export function resolveApiKey(profile: PrivacyProfile): string | undefined {
 
     if (profile.runtime === "byo-cloud") {
         return process.env.JERRY_API_KEY ?? process.env.OPENAI_API_KEY;
+    }
+
+    if (profile.runtime === "anthropic") {
+        return process.env.ANTHROPIC_API_KEY;
     }
 
     return undefined;
@@ -174,14 +179,16 @@ export function resolveOzwellModelId(profile: PrivacyProfile): string {
 /**
  * Normalize profile egress for cloud runtimes.
  *
- * When runtime is byo-cloud or ozwell and egress was left at default "deny",
+ * When runtime is byo-cloud, ozwell, or anthropic and egress was left at default "deny",
  * coerce to "allow-model" so model calls are permitted without requiring
  * callers to explicitly set egress.
  */
 export function normalizeProfile(profile: PrivacyProfile): PrivacyProfile {
     // If using cloud runtime with default deny egress, upgrade to allow-model
     if (
-        (profile.runtime === "byo-cloud" || profile.runtime === "ozwell") &&
+        (profile.runtime === "byo-cloud" ||
+            profile.runtime === "ozwell" ||
+            profile.runtime === "anthropic") &&
         profile.egress === "deny"
     ) {
         return { ...profile, egress: "allow-model" };

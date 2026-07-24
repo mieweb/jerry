@@ -231,6 +231,10 @@ export function createOzwellRuntime(
           toolChoice: filteredTools && Object.keys(filteredTools).length > 0 ? "auto" : undefined,
         });
 
+        let sawText = false;
+        let sawTool = false;
+        let sawFinish = false;
+
         for await (const part of result.fullStream) {
           // AI SDK often surfaces auth/network failures as stream error parts (not throws)
           if (part.type === "error") {
@@ -263,7 +267,28 @@ export function createOzwellRuntime(
             }
           }
 
+          if (part.type === "text-delta") {
+            sawText = true;
+          } else if (part.type === "tool-call") {
+            sawTool = true;
+          } else if (part.type === "finish") {
+            sawFinish = true;
+          }
+
           yield* mapStreamPartToEvents(part);
+        }
+
+        // Some Ozwell catalog models (e.g. certain Claude IDs) accept chat
+        // non-stream with a mock fallback, but stream only heartbeat+[DONE].
+        // Surface that as an error instead of a silent empty turn.
+        if (sawFinish && !sawText && !sawTool) {
+          yield {
+            type: "error",
+            message:
+              `Ozwell model "${modelId}" returned an empty stream (no text or tools). ` +
+              `This usually means the model is listed in /v1/models but the LLM backend ` +
+              `is unavailable for streaming. Try gpt-4.1-mini or another OpenAI model on Ozwell.`,
+          };
         }
       } catch (error) {
         if (isOzwellUnavailableError(error)) {

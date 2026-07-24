@@ -1,0 +1,57 @@
+{
+  "name": "jerry-term",
+  "version": "0.1.0",
+  "description": "Interactive terminal CLI for Jerry AI agent",
+  "type": "module",
+  "license": "MIT",
+  "author": "MIEWEB",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mieweb/jerry.git",
+    "directory": "packages/jerry-term"
+  },
+  "bin": {
+    "jerry-term": "./bin/jerry-term.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "dev:node": "tsx src/index.ts --no-ui",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opentui/core": "^0.1.0",
+    "@opentui/react": "^0.1.0",
+    "react": "^19.1.0",
+    "ai": "^4.3.0",
+    "@ai-sdk/openai-compatible": "^0.2.0",
+    "zod": "^3.23.0",
+    "conf": "^13.0.0"
+  },
+  "devDependencies": {
+    "@mieweb/jerry-agent-runtime": "workspace:*",
+    "@mieweb/jerry-tools": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "react-devtools-core": "^7.0.1",
+    "tsup": "^8.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
