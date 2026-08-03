@@ -5,12 +5,18 @@
  * ToolContext — no worker, database, or child process required.
  */
 
-import { describe, it } from "node:test";
+import { describe, it, mock, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createJerryMcpServer, JERRY_MCP_TOOL_NAMES } from "./server.js";
 import type { ToolContext } from "../runtime/types.js";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 /** Mock ToolContext: empty activity DB, no vectors, resolving scheduleWake. */
 function mockContext(): ToolContext {
@@ -85,6 +91,11 @@ describe("createJerryMcpServer", () => {
   });
 
   it("executes summarize_activity (no events → friendly message)", async () => {
+    // Keep the test offline: summarize_activity prefers live AW when reachable.
+    globalThis.fetch = mock.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
     const { client, server } = await connectClient();
     try {
       const result = await client.callTool({
@@ -94,7 +105,7 @@ describe("createJerryMcpServer", () => {
       const parsed = parseToolResult(result);
       assert.equal(parsed.error, false);
       assert.equal(parsed.summary, null);
-      assert.match(String(parsed.message), /No activity data/);
+      assert.match(String(parsed.message), /No evidence from ActivityWatch/);
     } finally {
       await client.close();
       await server.close();

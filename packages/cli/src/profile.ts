@@ -24,7 +24,38 @@ export interface JerryConfig {
   };
 }
 
+/**
+ * Profile values as displayed to the user (never partial).
+ */
+export interface ProfileSummary {
+  runtime: string;
+  model: string;
+  egress: string;
+}
+
 const DEFAULT_URL = "http://127.0.0.1:8787";
+
+/**
+ * Documented defaults, used when the profile leaves a field unset.
+ */
+const DEFAULT_PROFILE: ProfileSummary = {
+  runtime: "local",
+  model: "ollama:llama3.1:8b",
+  egress: "deny",
+};
+
+/**
+ * Resolve the profile fields worth showing in the REPL banner.
+ */
+export function describeProfile(
+  profile?: JerryConfig["profile"]
+): ProfileSummary {
+  return {
+    runtime: profile?.runtime ?? DEFAULT_PROFILE.runtime,
+    model: profile?.model ?? DEFAULT_PROFILE.model,
+    egress: profile?.egress ?? DEFAULT_PROFILE.egress,
+  };
+}
 
 /**
  * Possible config file locations, in order of precedence.

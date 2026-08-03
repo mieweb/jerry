@@ -14,6 +14,12 @@ export interface AwPollerConfig {
   pollInterval?: number;
   /** Buckets to poll (default: window and web watchers) */
   buckets?: string[];
+  /**
+   * How far back the first poll reaches when no cursor exists yet.
+   * Historical ranges are also available on-demand via summarize_activity;
+   * this only seeds Jerry's local store. Default: 48 hours.
+   */
+  initialLookbackMs?: number;
 }
 
 interface AwEvent {
@@ -38,6 +44,7 @@ const DEFAULT_CONFIG: Required<AwPollerConfig> = {
   jerryUrl: "http://127.0.0.1:8787",
   pollInterval: 30000,
   buckets: [],
+  initialLookbackMs: 48 * 60 * 60 * 1000,
 };
 
 /**
@@ -45,7 +52,7 @@ const DEFAULT_CONFIG: Required<AwPollerConfig> = {
  */
 async function discoverBuckets(awUrl: string): Promise<string[]> {
   try {
-    const response = await fetch(`${awUrl}/api/0/buckets`);
+    const response = await fetch(`${awUrl}/api/0/buckets/`);
     if (!response.ok) {
       console.error(`Failed to fetch buckets: ${response.status}`);
       return [];
@@ -74,24 +81,24 @@ async function discoverBuckets(awUrl: string): Promise<string[]> {
 }
 
 /**
- * Fetch events from an AW bucket since a given timestamp.
+ * Fetch events from an AW bucket since a given timestamp (or initial lookback).
  */
 async function fetchBucketEvents(
   awUrl: string,
   bucketId: string,
-  since?: string
+  since: string | undefined,
+  initialLookbackMs: number
 ): Promise<AwEvent[]> {
   try {
-    let url = `${awUrl}/api/0/buckets/${encodeURIComponent(bucketId)}/events`;
-
-    if (since) {
-      // AW expects ISO format; fetch events after this timestamp
-      url += `?start=${encodeURIComponent(since)}`;
-    } else {
-      // First poll: get last 2 hours
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      url += `?start=${encodeURIComponent(twoHoursAgo)}`;
-    }
+    const start =
+      since ?? new Date(Date.now() - initialLookbackMs).toISOString();
+    const end = new Date().toISOString();
+    const params = new URLSearchParams({
+      start,
+      end,
+      limit: "-1",
+    });
+    const url = `${awUrl}/api/0/buckets/${encodeURIComponent(bucketId)}/events?${params}`;
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -169,7 +176,12 @@ export function createAwPoller(config: AwPollerConfig = {}) {
 
     for (const bucketId of buckets) {
       const cursor = cursors.get(bucketId);
-      const events = await fetchBucketEvents(cfg.awUrl, bucketId, cursor);
+      const events = await fetchBucketEvents(
+        cfg.awUrl,
+        bucketId,
+        cursor,
+        cfg.initialLookbackMs
+      );
 
       if (events.length > 0) {
         // Update cursor to latest event timestamp
