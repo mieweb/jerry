@@ -517,7 +517,7 @@ hidden host coupling from creeping into Jerry.
   DO alarm; optional DuckDB local-only analytics.
 - Deploy to `mieweb/os` (self-hosted) and Cloudflare; mobile thin client.
 - Local models: Ollama embeddings (footnote) / CloudAI backend.
-- Upstream: land the `@mieweb/cloud-agent` PR; footnote fixes as PRs.
+- Upstream: land the `@mieweb/cloud-agent` PR ([mieweb/cloud#1](https://github.com/mieweb/cloud/pull/1)); footnote fixes as PRs.
 
 ---
 

@@ -1,0 +1,9 @@
+[submodule "vendor/cloud"]
+	path = vendor/cloud
+	url = https://github.com/mieweb/cloud.git
+[submodule "vendor/ozwellai-api"]
+	path = vendor/ozwellai-api
+	url = https://github.com/mieweb/ozwellai-api.git
+[submodule "vendor/footnote"]
+	path = vendor/footnote
+	url = https://github.com/mieweb/melvil-artipod-footnote.git

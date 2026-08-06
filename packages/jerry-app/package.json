@@ -1,0 +1,32 @@
+{
+  "name": "@mieweb/jerry-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jerry worker: fetch/queue/scheduled handlers + AgentSession DO + agent definition",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./agent": {
+      "types": "./src/agent.ts",
+      "default": "./src/agent.ts"
+    }
+  },
+  "scripts": {
+    "dev": "NODE_OPTIONS='--import tsx' mieweb --target local dev",
+    "dev:cf": "mieweb dev",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@mieweb/cloud-agent": "workspace:*",
+    "@mieweb/jerry-agent-runtime": "workspace:*",
+    "@mieweb/jerry-tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@mieweb/cli": "workspace:*",
+    "@mieweb/cloud-local": "workspace:*"
+  }
+}

@@ -1,0 +1,59 @@
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { streamText } from "ai";
+import type { AgentRuntime, PrivacyProfile, TurnInput, RuntimeEvent } from "../types.ts";
+import { parseModelRef } from "../profile.ts";
+import { mapStreamPartToEvents } from "../stream/map-events.ts";
+import { filterTools } from "./filter-tools.ts";
+
+// Re-export for backwards compatibility
+export { filterTools } from "./filter-tools.ts";
+
+/**
+ * Create a local AgentRuntime that uses Vercel AI SDK over Ollama.
+ *
+ * The local backend:
+ * - Parses the model reference (e.g. "ollama:qwen2.5")
+ * - Creates an OpenAI-compatible provider pointing to Ollama
+ * - Filters tools based on egress policy
+ * - Streams events via fullStream
+ */
+export function createLocalRuntime(profile: PrivacyProfile): AgentRuntime {
+  const parsed = parseModelRef(profile.model);
+
+  const provider = createOpenAICompatible({
+    name: parsed.provider,
+    baseURL: parsed.baseURL,
+  });
+
+  const model = provider(parsed.modelId);
+
+  return {
+    profile,
+
+    async *runTurn(input: TurnInput): AsyncIterable<RuntimeEvent> {
+      yield { type: "start" };
+
+      try {
+        const filteredTools = filterTools(input.tools, profile);
+
+        const result = streamText({
+          model,
+          system: input.system,
+          messages: input.messages,
+          tools: filteredTools,
+          maxSteps: input.maxSteps ?? 5,
+        });
+
+        for await (const part of result.fullStream) {
+          yield* mapStreamPartToEvents(part);
+        }
+      } catch (error) {
+        yield {
+          type: "error",
+          message: error instanceof Error ? error.message : String(error),
+          cause: error,
+        };
+      }
+    },
+  };
+}

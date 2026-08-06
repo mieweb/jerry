@@ -1,0 +1,53 @@
+{
+  // Off-Cloudflare driver hints. wrangler.jsonc stays the source of truth for
+  // WHICH bindings exist; this sidecar only says which adapter backs each one
+  // per target. Pick a target with `mieweb --target <t> dev` or the field below.
+  "$schema": "node_modules/@mieweb/cli/mieweb-config.schema.json",
+  "wrangler": "./wrangler.jsonc",
+  "target": "local",
+  "targets": {
+    // local: in-process Node adapters, zero external services.
+    "local": {
+      "port": 8787,
+      "bindings": {
+        "DB": { "driver": "sqlite", "path": ".data/local/d1.sqlite" },
+        "CACHE": { "driver": "memory" },
+        "BUCKET": { "driver": "fs", "path": ".data/local/files" },
+        "JOBS": { "driver": "inproc", "queue": "mieweb-jerry-turns" },
+        "SESSION": { "driver": "inproc" },
+        "VECTORS": { "driver": "sqlite-vec", "path": ".data/local/vectors.sqlite", "dim": 768 },
+        // No local Workers AI in CI → surface UnsupportedBindingError
+        "AI": { "driver": "unsupported" }
+      }
+    },
+
+    // mieweb (os.mieweb.org): libSQL + S3 + Valkey. Bring the backing services up
+    // with the docker-compose.yml from @mieweb/cloud-os.
+    "mieweb": {
+      "port": 8787,
+      "bindings": {
+        "DB": { "driver": "libsql", "url": "http://localhost:8080" },
+        "CACHE": { "driver": "valkey", "host": "127.0.0.1", "port": 6379, "namespace": "jerry" },
+        "BUCKET": {
+          "driver": "s3",
+          "endpoint": "http://localhost:9000",
+          "bucket": "mieweb-jerry-files",
+          "accessKeyId": "minioadmin",
+          "secretAccessKey": "minioadmin",
+          "forcePathStyle": true,
+          "createIfMissing": true
+        },
+        "JOBS": {
+          "driver": "valkey-queue",
+          "queue": "mieweb-jerry-turns",
+          "host": "127.0.0.1",
+          "port": 6379,
+          "namespace": "jerry"
+        },
+        "SESSION": { "driver": "inproc" },
+        "VECTORS": { "driver": "libsql-vec", "url": "http://localhost:8080", "dim": 768, "table": "jerry_vectors" },
+        "AI": { "driver": "unsupported" }
+      }
+    }
+  }
+}

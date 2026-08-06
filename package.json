@@ -1,0 +1,33 @@
+{
+  "name": "mieweb-jerry",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jerry — your value advocate: an event-driven agent that interprets your activity into a defensible narrative of value",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mieweb/jerry-app dev",
+    "predev": "lsof -ti:8787 | xargs kill -9 2>/dev/null || true",
+    "typecheck": "pnpm --filter ozwellai build && tsc --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm -r --if-present test",
+    "ci": "bash scripts/ci.sh",
+    "footnote:index": "bash scripts/jerry-footnote.sh index",
+    "jerry:dev:footnote": "bash scripts/jerry-footnote.sh dev",
+    "jerry:ask": "bash scripts/jerry-footnote.sh ask"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240620.0",
+    "@eslint/js": "^9.0.0",
+    "@mieweb/cli": "workspace:*",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}
