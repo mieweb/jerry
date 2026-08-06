@@ -56,3 +56,15 @@ export { formatActivityContext } from "./aw/format.ts";
 
 // Time format utilities
 export { formatLocalTimeRange } from "./aw/time-format.ts";
+
+// ActivityWatch HTTP client (on-demand historical fetch)
+export {
+  DEFAULT_AW_URL,
+  discoverActivityBuckets,
+  fetchAwActivityRange,
+  fetchBucketEventsInRange,
+  isAwReachable,
+  isActivityBucket,
+  resolveAwUrl,
+} from "./aw/client.ts";
+export type { AwActivitySlice } from "./aw/client.ts";

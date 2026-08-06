@@ -130,6 +130,7 @@ export function mergeProfile(
  * Resolve API key from profile or environment variables.
  *
  * Priority for byo-cloud: profile.apiKey → JERRY_API_KEY → OPENAI_API_KEY
+ * Priority for byo-cloud on Anthropic: profile.apiKey → ANTHROPIC_API_KEY → JERRY_API_KEY
  * Priority for ozwell: profile.apiKey → OZWELL_API_KEY → OZWELL_AGENT_KEY
  *
  * Parent `ozw_` keys are preferred for Jerry: Ozwell is only the model endpoint,
@@ -150,6 +151,12 @@ export function resolveApiKey(profile: PrivacyProfile): string | undefined {
     }
 
     if (profile.runtime === "byo-cloud") {
+        // For byo-cloud the endpoint is embedded in the model ref
+        // ("https://host/v1#model"), so check both places for the provider.
+        const target = `${profile.endpoint ?? ""} ${profile.model ?? ""}`;
+        if (target.includes("anthropic.com")) {
+            return process.env.ANTHROPIC_API_KEY ?? process.env.JERRY_API_KEY;
+        }
         return process.env.JERRY_API_KEY ?? process.env.OPENAI_API_KEY;
     }
 

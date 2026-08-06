@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { loadEnv } from "./load-env.js";
 
 export interface JerryConfig {
   /** Jerry server URL */
@@ -24,7 +25,59 @@ export interface JerryConfig {
   };
 }
 
+/**
+ * Profile values as displayed to the user (never partial).
+ */
+export interface ProfileSummary {
+  runtime: string;
+  model: string;
+  egress: string;
+}
+
 const DEFAULT_URL = "http://127.0.0.1:8787";
+
+/**
+ * Documented defaults, used when the profile leaves a field unset.
+ */
+const DEFAULT_PROFILE: ProfileSummary = {
+  runtime: "local",
+  model: "ollama:llama3.1:8b",
+  egress: "deny",
+};
+
+/**
+ * Resolve the profile fields worth showing in the REPL banner.
+ *
+ * Cloud runtimes report `allow-model` even when egress is left at `deny`,
+ * because the worker coerces it that way — showing `deny` next to a cloud
+ * model would claim a guarantee Jerry is not making.
+ */
+export function describeProfile(
+  profile?: JerryConfig["profile"]
+): ProfileSummary {
+  const runtime = profile?.runtime ?? DEFAULT_PROFILE.runtime;
+  const egress = profile?.egress ?? DEFAULT_PROFILE.egress;
+  const isCloud = runtime === "byo-cloud" || runtime === "ozwell";
+
+  return {
+    runtime,
+    model: profile?.model ?? DEFAULT_PROFILE.model,
+    egress: isCloud && egress === "deny" ? "allow-model" : egress,
+  };
+}
+
+/**
+ * Anthropic and OpenAI both speak the OpenAI-compatible protocol, so only the
+ * host tells us which API key to reach for.
+ */
+function isAnthropicTarget(
+  model: string | undefined,
+  endpoint: string | undefined
+): boolean {
+  return Boolean(
+    endpoint?.includes("anthropic.com") || model?.includes("anthropic.com")
+  );
+}
 
 /**
  * Possible config file locations, in order of precedence.
@@ -56,6 +109,9 @@ function readConfigFile(path: string): Partial<JerryConfig> | null {
  * Load Jerry configuration from environment and config files.
  */
 export function loadConfig(): JerryConfig {
+  // Fill gaps from a nearby `.env` (shell / real env still wins).
+  loadEnv();
+
   // Start with defaults
   let config: JerryConfig = {
     url: DEFAULT_URL,
@@ -85,7 +141,8 @@ export function loadConfig(): JerryConfig {
     process.env.JERRY_API_KEY ||
     process.env.OZWELL_API_KEY ||
     process.env.OZWELL_AGENT_KEY ||
-    process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY;
 
   if (hasProfileEnvVars) {
     // Resolve endpoint: JERRY_ENDPOINT > OZWELL_ENDPOINT > config
@@ -99,6 +156,7 @@ export function loadConfig(): JerryConfig {
     //   (parent ozw_ preferred — Jerry owns tools; agnt_key injects Ozwell persona)
     // For byo-cloud: JERRY_API_KEY > OPENAI_API_KEY
     const runtime = process.env.JERRY_RUNTIME ?? config.profile?.runtime;
+    const model = process.env.JERRY_MODEL ?? config.profile?.model;
     let apiKey = config.profile?.apiKey;
 
     if (runtime === "ozwell") {
@@ -108,10 +166,15 @@ export function loadConfig(): JerryConfig {
         process.env.JERRY_API_KEY ??
         apiKey;
     } else if (runtime === "byo-cloud") {
-      apiKey =
-        process.env.JERRY_API_KEY ??
-        process.env.OPENAI_API_KEY ??
-        apiKey;
+      // The provider is only knowable from the endpoint, which for byo-cloud
+      // lives inside the model ref ("https://host/v1#model").
+      apiKey = isAnthropicTarget(model, endpoint)
+        ? process.env.ANTHROPIC_API_KEY ??
+          process.env.JERRY_API_KEY ??
+          apiKey
+        : process.env.JERRY_API_KEY ??
+          process.env.OPENAI_API_KEY ??
+          apiKey;
     } else {
       // For other runtimes, check JERRY_API_KEY
       apiKey = process.env.JERRY_API_KEY ?? apiKey;

@@ -1,8 +1,9 @@
 /**
  * summarize_activity tool — get activity summary for a time range.
  *
- * Uses the AW pure functions from packages/tools to process activity data
- * from the database (collector-pushed events).
+ * Prefers a live ActivityWatch fetch for the exact requested range so historical
+ * days work even when the collector only ingested the last few hours. Falls
+ * back to collector-pushed rows in Jerry's DB when AW is unreachable.
  */
 
 import { tool } from "ai";
@@ -13,7 +14,8 @@ import {
   buildActivitySummary,
   formatActivityContext,
 } from "../index.js";
-import type { RawEvent, Bucket } from "../aw/types.js";
+import type { Bucket, RawEvent } from "../aw/types.js";
+import { fetchAwActivityRange } from "../aw/client.js";
 
 interface ActivityEventRow {
   id: string;
@@ -88,7 +90,7 @@ function transformToAwFormat(events: StoredActivityEvent[]): {
   for (const [bucketId, data] of bucketMap) {
     buckets.push(data.bucket);
     eventsByBucket[bucketId] = data.events;
-    pagesByBucket[bucketId] = 1; // Collector pushes in batches, treat as 1 page
+    pagesByBucket[bucketId] = 1;
   }
 
   return { buckets, eventsByBucket, pagesByBucket };
@@ -118,6 +120,58 @@ async function saveSummary(
   return id;
 }
 
+type ActivitySource = "activitywatch" | "jerry-db";
+
+/**
+ * Resolve activity data for a range: live AW first, then Jerry DB fallback.
+ */
+async function loadActivityForRange(
+  db: ToolContext["db"],
+  start: Date,
+  end: Date
+): Promise<{
+  buckets: Bucket[];
+  eventsByBucket: Record<string, RawEvent[]>;
+  pagesByBucket: Record<string, number>;
+  source: ActivitySource | null;
+  awReachable: boolean;
+}> {
+  const awSlice = await fetchAwActivityRange({ start, end });
+
+  if (awSlice && awSlice.eventCount > 0) {
+    return {
+      buckets: awSlice.buckets,
+      eventsByBucket: awSlice.eventsByBucket,
+      pagesByBucket: awSlice.pagesByBucket,
+      source: "activitywatch",
+      awReachable: true,
+    };
+  }
+
+  const events = await queryActivityEvents(
+    db,
+    start.toISOString(),
+    end.toISOString()
+  );
+  const fromDb = transformToAwFormat(events);
+
+  if (fromDb.buckets.length > 0) {
+    return {
+      ...fromDb,
+      source: "jerry-db",
+      awReachable: awSlice !== null,
+    };
+  }
+
+  return {
+    buckets: [],
+    eventsByBucket: {},
+    pagesByBucket: {},
+    source: null,
+    awReachable: awSlice !== null,
+  };
+}
+
 /**
  * Create the summarize_activity tool.
  */
@@ -126,23 +180,25 @@ export function createSummarizeActivityTool(ctx: ToolContext) {
     description:
       "Get a summary of the user's activity for a specified time range. " +
       "Analyzes ActivityWatch data to show what applications were used, " +
-      "websites visited, meetings attended, and overall productivity patterns.",
+      "websites visited, meetings attended, and overall productivity patterns. " +
+      "Supports any calendar day or rolling window (e.g. 'July 22', '2026-06-26', 'last 2 hours', 'today').",
     parameters: z.object({
       range: z
         .string()
         .describe(
-          "Natural language time range, e.g. 'last 2 hours', 'today', 'yesterday afternoon', 'this morning'"
+          "Natural language time range, e.g. 'last 2 hours', 'today', 'yesterday', 'July 22', '2026-06-26', 'May 10 to May 13'"
         ),
     }),
     execute: async ({ range }) => {
-      // Parse the time range from natural language
       let resolved;
       try {
-        resolved = resolveActivityRange(range, undefined, undefined, { strict: false });
+        resolved = resolveActivityRange(range, undefined, undefined, {
+          strict: false,
+        });
       } catch {
         return {
           error: true,
-          message: `Could not parse time range: "${range}". Try something like "last 2 hours" or "today".`,
+          message: `Could not parse time range: "${range}". Try something like "last 2 hours", "today", "July 22", or "2026-06-26".`,
         };
       }
 
@@ -150,47 +206,36 @@ export function createSummarizeActivityTool(ctx: ToolContext) {
       const startISO = start.toISOString();
       const endISO = end.toISOString();
 
-      // Query activity events from the database
-      const events = await queryActivityEvents(ctx.db, startISO, endISO);
+      const loaded = await loadActivityForRange(ctx.db, start, end);
 
-      if (events.length === 0) {
+      if (!loaded.source) {
+        const hint = loaded.awReachable
+          ? `ActivityWatch has no events for ${label}.`
+          : `ActivityWatch is unreachable and Jerry's local store has no events for ${label}. Is ActivityWatch running on localhost:5600?`;
+
         return {
           error: false,
-          message: `No activity data found for ${range}. The collector may not be running or no events have been captured yet.`,
-          range: { start: startISO, end: endISO },
+          message: `No evidence from ActivityWatch for ${range}. ${hint}`,
+          range: { start: startISO, end: endISO, label },
           summary: null,
         };
       }
 
-      // Transform events into AW format
-      const { buckets, eventsByBucket, pagesByBucket } = transformToAwFormat(events);
-
-      if (buckets.length === 0) {
-        return {
-          error: false,
-          message: `Found ${events.length} events but none were AW activity data.`,
-          range: { start: startISO, end: endISO },
-          summary: null,
-        };
-      }
-
-      // Build the activity summary using pure functions
       const summary = buildActivitySummary(
-        buckets,
-        eventsByBucket,
-        pagesByBucket,
+        loaded.buckets,
+        loaded.eventsByBucket,
+        loaded.pagesByBucket,
         { start, end, label }
       );
 
-      // Save the summary to the database
       await saveSummary(ctx.db, ctx.sessionId, startISO, endISO, summary);
 
-      // Format for the agent
       const formatted = formatActivityContext(summary);
 
       return {
         error: false,
-        range: { start: startISO, end: endISO },
+        range: { start: startISO, end: endISO, label },
+        dataSource: loaded.source,
         formatted,
         summary: {
           bucketCount: summary.bucketCount,

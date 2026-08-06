@@ -5,9 +5,15 @@
  * with a mock env — no worker runtime required.
  */
 
-import { describe, it } from "node:test";
+import { describe, it, mock, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { handleMcpRequest, type McpWorkerEnv } from "./mcp-handler.js";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 function mockEnv(): McpWorkerEnv {
   const db = {
@@ -62,6 +68,12 @@ describe("handleMcpRequest", () => {
   });
 
   it("executes a tool call over HTTP", async () => {
+    // Keep the test offline: summarize_activity prefers live AW when reachable,
+    // so a developer running ActivityWatch would otherwise get real events.
+    globalThis.fetch = mock.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
     const response = await handleMcpRequest(
       jsonRpcRequest({
         jsonrpc: "2.0",
@@ -80,6 +92,6 @@ describe("handleMcpRequest", () => {
     assert.ok(Array.isArray(content) && content.length > 0, "content present");
     const parsed = JSON.parse(content![0].text ?? "{}");
     assert.equal(parsed.error, false);
-    assert.match(String(parsed.message), /No activity data/);
+    assert.match(String(parsed.message), /No evidence from ActivityWatch/);
   });
 });

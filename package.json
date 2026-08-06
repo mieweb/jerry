@@ -18,7 +18,8 @@
     "ci": "bash scripts/ci.sh",
     "footnote:index": "bash scripts/jerry-footnote.sh index",
     "jerry:dev:footnote": "bash scripts/jerry-footnote.sh dev",
-    "jerry:ask": "bash scripts/jerry-footnote.sh ask"
+    "jerry:ask": "bash scripts/jerry-footnote.sh ask",
+    "inject:mock-aw": "bash scripts/inject-mock-aw.sh"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240620.0",

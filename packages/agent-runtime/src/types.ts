@@ -76,7 +76,21 @@ export interface TurnInput {
   system?: string;
   /** Maximum number of tool-call steps (default: 5) */
   maxSteps?: number;
+  /**
+   * Max tokens for model output per generation step.
+   * When omitted, backends use DEFAULT_MAX_OUTPUT_TOKENS — providers (esp.
+   * Ozwell→Claude) often apply a low default if this is left unset, which
+   * truncates long summaries mid-sentence.
+   */
+  maxTokens?: number;
 }
+
+/**
+ * Default max output tokens for streamText when the caller does not set one.
+ * High enough for week-long activity narratives; Claude/Ozwell require an
+ * explicit ceiling or they inject a small one.
+ */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
 
 /**
  * Events emitted during a turn.

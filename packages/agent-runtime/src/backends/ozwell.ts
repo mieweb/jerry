@@ -2,6 +2,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText } from "ai";
 import { OzwellAI } from "ozwellai";
 import type { AgentRuntime, PrivacyProfile, TurnInput, RuntimeEvent } from "../types.ts";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "../types.ts";
 import {
   DEFAULT_OZWELL_ENDPOINT,
   resolveApiKey,
@@ -227,6 +228,7 @@ export function createOzwellRuntime(
           messages: input.messages,
           tools: filteredTools,
           maxSteps: input.maxSteps ?? 5,
+          maxTokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
           // Prefer tool use when Jerry tools are available (activity summaries, etc.)
           toolChoice: filteredTools && Object.keys(filteredTools).length > 0 ? "auto" : undefined,
         });
