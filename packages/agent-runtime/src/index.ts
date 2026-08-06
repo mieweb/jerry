@@ -11,6 +11,7 @@ export type {
   RuntimeEvent,
   AgentRuntime,
 } from "./types.ts";
+export { DEFAULT_MAX_OUTPUT_TOKENS } from "./types.ts";
 
 // Profile utilities
 export {

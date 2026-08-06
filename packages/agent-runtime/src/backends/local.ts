@@ -1,6 +1,7 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText } from "ai";
 import type { AgentRuntime, PrivacyProfile, TurnInput, RuntimeEvent } from "../types.ts";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "../types.ts";
 import { parseModelRef } from "../profile.ts";
 import { mapStreamPartToEvents } from "../stream/map-events.ts";
 import { filterTools } from "./filter-tools.ts";
@@ -42,6 +43,7 @@ export function createLocalRuntime(profile: PrivacyProfile): AgentRuntime {
           messages: input.messages,
           tools: filteredTools,
           maxSteps: input.maxSteps ?? 5,
+          maxTokens: input.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
         });
 
         for await (const part of result.fullStream) {

@@ -1,0 +1,316 @@
+{
+  "description": "Mock ActivityWatch signals for a DevOps engineer, Aug 1–3 2026, 10:00–15:00 America/New_York each day. Inject with: pnpm inject:mock-aw",
+  "persona": "DevOps engineer",
+  "timezone": "America/New_York",
+  "range": {
+    "startDate": "2026-08-01",
+    "endDate": "2026-08-03",
+    "workHoursLocal": "10:00-15:00"
+  },
+  "buckets": [
+    {
+      "id": "aw-watcher-window_mock",
+      "client": "aw-watcher-window",
+      "type": "currentwindow",
+      "hostname": "mock-laptop",
+      "events": [
+        {
+          "timestamp": "2026-08-01T10:00:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Google Chrome", "title": "Daily standup - Google Meet" }
+        },
+        {
+          "timestamp": "2026-08-01T10:30:00-04:00",
+          "duration": 900,
+          "data": { "app": "Slack", "title": "platform-ops — #incidents" }
+        },
+        {
+          "timestamp": "2026-08-01T10:45:00-04:00",
+          "duration": 2700,
+          "data": { "app": "Cursor", "title": "staging/main.tf — infra-live" }
+        },
+        {
+          "timestamp": "2026-08-01T11:30:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Terminal", "title": "terraform plan -var-file=staging.tfvars" }
+        },
+        {
+          "timestamp": "2026-08-01T12:00:00-04:00",
+          "duration": 1200,
+          "data": { "app": "Google Chrome", "title": "AWS Console — ECS Clusters" }
+        },
+        {
+          "timestamp": "2026-08-01T12:20:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Cursor", "title": "modules/ecs/service.tf — infra-live" }
+        },
+        {
+          "timestamp": "2026-08-01T13:00:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Terminal", "title": "terraform apply -auto-approve" }
+        },
+        {
+          "timestamp": "2026-08-01T13:30:00-04:00",
+          "duration": 1500,
+          "data": { "app": "Google Chrome", "title": "GitHub Actions — mieweb/infra-live" }
+        },
+        {
+          "timestamp": "2026-08-01T13:55:00-04:00",
+          "duration": 2100,
+          "data": { "app": "Cursor", "title": ".github/workflows/deploy-staging.yml — infra-live" }
+        },
+        {
+          "timestamp": "2026-08-01T14:30:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Terminal", "title": "kubectl -n staging get pods -w" }
+        },
+
+        {
+          "timestamp": "2026-08-02T10:00:00-04:00",
+          "duration": 1500,
+          "data": { "app": "Slack", "title": "platform-ops — #deployments" }
+        },
+        {
+          "timestamp": "2026-08-02T10:25:00-04:00",
+          "duration": 2100,
+          "data": { "app": "Google Chrome", "title": "Argo CD — staging applications" }
+        },
+        {
+          "timestamp": "2026-08-02T11:00:00-04:00",
+          "duration": 2700,
+          "data": { "app": "Cursor", "title": "helm/api/values-staging.yaml — platform-charts" }
+        },
+        {
+          "timestamp": "2026-08-02T11:45:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Terminal", "title": "helm upgrade api ./helm/api -f values-staging.yaml" }
+        },
+        {
+          "timestamp": "2026-08-02T12:15:00-04:00",
+          "duration": 1500,
+          "data": { "app": "Google Chrome", "title": "GitHub — mieweb/platform-charts PR #88" }
+        },
+        {
+          "timestamp": "2026-08-02T12:40:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Cursor", "title": ".github/workflows/ci.yml — platform-charts" }
+        },
+        {
+          "timestamp": "2026-08-02T13:20:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Terminal", "title": "gh run watch 184729301" }
+        },
+        {
+          "timestamp": "2026-08-02T13:50:00-04:00",
+          "duration": 2100,
+          "data": { "app": "Google Chrome", "title": "Datadog — APM Service Map" }
+        },
+        {
+          "timestamp": "2026-08-02T14:25:00-04:00",
+          "duration": 2100,
+          "data": { "app": "Cursor", "title": "docs/runbooks/rollback.md — platform-charts" }
+        },
+
+        {
+          "timestamp": "2026-08-03T10:00:00-04:00",
+          "duration": 1200,
+          "data": { "app": "Slack", "title": "platform-ops — #incidents — SEV-2: elevated 5xx" }
+        },
+        {
+          "timestamp": "2026-08-03T10:20:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Google Chrome", "title": "PagerDuty — INC-2048 Elevated API errors" }
+        },
+        {
+          "timestamp": "2026-08-03T11:00:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Google Chrome", "title": "Datadog — Logs Explore api-gateway" }
+        },
+        {
+          "timestamp": "2026-08-03T11:30:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Terminal", "title": "kubectl -n prod logs deploy/api-gateway --tail=200" }
+        },
+        {
+          "timestamp": "2026-08-03T12:10:00-04:00",
+          "duration": 2100,
+          "data": { "app": "Cursor", "title": "k8s/api-gateway/hpa.yaml — platform-charts" }
+        },
+        {
+          "timestamp": "2026-08-03T12:45:00-04:00",
+          "duration": 1500,
+          "data": { "app": "Terminal", "title": "kubectl -n prod apply -f hpa.yaml && kubectl rollout status" }
+        },
+        {
+          "timestamp": "2026-08-03T13:10:00-04:00",
+          "duration": 1800,
+          "data": { "app": "Google Chrome", "title": "Zoom Meeting — Incident bridge INC-2048" }
+        },
+        {
+          "timestamp": "2026-08-03T13:40:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Google Chrome", "title": "Team Intern Document — Postmortem INC-2048 - Google Docs" }
+        },
+        {
+          "timestamp": "2026-08-03T14:20:00-04:00",
+          "duration": 2400,
+          "data": { "app": "Cursor", "title": "docs/postmortems/2026-08-03-api-5xx.md — platform-charts" }
+        }
+      ]
+    },
+    {
+      "id": "aw-watcher-web-mock",
+      "client": "aw-watcher-web",
+      "type": "web.tab.current",
+      "hostname": "mock-laptop",
+      "events": [
+        {
+          "timestamp": "2026-08-01T10:00:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://meet.google.com/abc-devops-stand",
+            "title": "Daily standup"
+          }
+        },
+        {
+          "timestamp": "2026-08-01T10:30:00-04:00",
+          "duration": 900,
+          "data": {
+            "url": "https://app.slack.com/client/T0MOCK/C0OPS",
+            "title": "platform-ops — #incidents"
+          }
+        },
+        {
+          "timestamp": "2026-08-01T12:00:00-04:00",
+          "duration": 1200,
+          "data": {
+            "url": "https://github.com/mieweb/infra-live/actions",
+            "title": "Actions · mieweb/infra-live"
+          }
+        },
+        {
+          "timestamp": "2026-08-01T13:30:00-04:00",
+          "duration": 1500,
+          "data": {
+            "url": "https://github.com/mieweb/infra-live/actions/runs/184700001",
+            "title": "deploy-staging · Run #412"
+          }
+        },
+        {
+          "timestamp": "2026-08-01T13:55:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://github.com/mieweb/infra-live/pull/64",
+            "title": "PR #64: scale staging ECS tasks"
+          }
+        },
+        {
+          "timestamp": "2026-08-01T14:20:00-04:00",
+          "duration": 900,
+          "data": {
+            "url": "https://linear.app/mieweb/issue/OPS-211",
+            "title": "OPS-211 Staging capacity headroom"
+          }
+        },
+
+        {
+          "timestamp": "2026-08-02T10:25:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://github.com/mieweb/platform-charts/pull/88",
+            "title": "PR #88: bump API chart for staging"
+          }
+        },
+        {
+          "timestamp": "2026-08-02T12:15:00-04:00",
+          "duration": 1500,
+          "data": {
+            "url": "https://github.com/mieweb/platform-charts/pull/88/files",
+            "title": "Files changed · PR #88"
+          }
+        },
+        {
+          "timestamp": "2026-08-02T12:40:00-04:00",
+          "duration": 1200,
+          "data": {
+            "url": "https://github.com/mieweb/platform-charts/actions",
+            "title": "Actions · mieweb/platform-charts"
+          }
+        },
+        {
+          "timestamp": "2026-08-02T13:20:00-04:00",
+          "duration": 1500,
+          "data": {
+            "url": "https://stackoverflow.com/questions/tagged/kubernetes+helm",
+            "title": "Newest 'kubernetes' 'helm' Questions - Stack Overflow"
+          }
+        },
+        {
+          "timestamp": "2026-08-02T13:50:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://app.slack.com/client/T0MOCK/C0DEPLOY",
+            "title": "platform-ops — #deployments"
+          }
+        },
+        {
+          "timestamp": "2026-08-02T14:25:00-04:00",
+          "duration": 1200,
+          "data": {
+            "url": "https://www.notion.so/mieweb/Rollback-checklist-staging",
+            "title": "Rollback checklist — staging"
+          }
+        },
+
+        {
+          "timestamp": "2026-08-03T10:00:00-04:00",
+          "duration": 1200,
+          "data": {
+            "url": "https://app.slack.com/client/T0MOCK/C0INC",
+            "title": "platform-ops — #incidents"
+          }
+        },
+        {
+          "timestamp": "2026-08-03T10:20:00-04:00",
+          "duration": 2100,
+          "data": {
+            "url": "https://github.com/mieweb/platform-charts/issues/102",
+            "title": "Issue #102: API gateway 5xx spike"
+          }
+        },
+        {
+          "timestamp": "2026-08-03T11:00:00-04:00",
+          "duration": 1500,
+          "data": {
+            "url": "https://linear.app/mieweb/issue/OPS-220",
+            "title": "OPS-220 SEV-2 API 5xx"
+          }
+        },
+        {
+          "timestamp": "2026-08-03T13:10:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://zoom.us/j/20482048204",
+            "title": "Incident bridge INC-2048"
+          }
+        },
+        {
+          "timestamp": "2026-08-03T13:40:00-04:00",
+          "duration": 2400,
+          "data": {
+            "url": "https://docs.google.com/document/d/mock-postmortem-inc2048/edit",
+            "title": "Postmortem INC-2048"
+          }
+        },
+        {
+          "timestamp": "2026-08-03T14:20:00-04:00",
+          "duration": 1800,
+          "data": {
+            "url": "https://github.com/mieweb/platform-charts/pull/91",
+            "title": "PR #91: HPA floor bump after INC-2048"
+          }
+        }
+      ]
+    }
+  ]
+}

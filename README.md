@@ -13,7 +13,7 @@ Jerry is **host-agnostic**: instructions + tools bound to a pluggable model runt
 - **Node.js** ≥ 22.16
 - **pnpm** 10.17.1 (`corepack enable` if needed)
 - **Ollama** with a tool-capable model (`qwen2.5:3b` or `llama3.2:3b` — not `gemma3:4b`)
-- **ActivityWatch** on `localhost:5600` (optional; needed for real activity summaries)
+- **ActivityWatch** on `localhost:5600` (optional; needed for activity summaries — see mock inject below if you have no history)
 
 ### Setup
 
@@ -39,10 +39,19 @@ curl http://localhost:8787/health
 # {"status":"ok","package":"@mieweb/jerry-app"}
 ```
 
-Optional — ActivityWatch ingest:
+Optional — ActivityWatch (activity summaries):
+
+> **Testers without real history:** install [ActivityWatch](https://docs.activitywatch.net/en/latest/getting-started.html), start it (`localhost:5600`), then inject three days of DevOps mock signals (Aug 1–3, 10:00–15:00 ET):
+>
+> ```bash
+> pnpm inject:mock-aw
+> # or: ./scripts/inject-mock-aw.sh
+> ```
+>
+> Data lives in [`MOCK_AW_DATA.json`](./MOCK_AW_DATA.json). Then ask Jerry, e.g. `jerry what's my work summary from 2026-08-01 to 2026-08-03`.
 
 ```bash
-# Terminal 2 (ActivityWatch must already be running)
+# Terminal 2 — optional continuous ingest (ActivityWatch must already be running)
 pnpm --filter @mieweb/jerry-collector dev
 ```
 
@@ -78,7 +87,8 @@ A greeting only counts when the **whole** message is a greeting — `jerry hi su
 
 ```bash
 jerry summarize my last 2 hours
-jerry -txt quick note for the day
+# First-time AW users (after pnpm inject:mock-aw): mock data is Aug 1–3 2026, 10:00–15:00 ET
+jerry what's my work summary from 2026-08-01 to 2026-08-03
 jerry --session session-… what did I ship?
 jerry --debug summarize my last 2 hours
 ```
@@ -181,6 +191,38 @@ flowchart TB
 **Host-agnostic in one line:** Jerry = instructions + tools. The host (`@mieweb/cloud-agent`) gives sessions a lifecycle; the runtime picks where inference goes; tools and storage stay put.
 
 Full architecture: [plan.md](plan.md).
+
+---
+
+## Sources of truth & tools
+
+Jerry only asserts what a **source of truth (SoT)** can substantiate. After each turn the CLI prints `tools:` (and often `sources:`) so you can see what it actually looked at. In the REPL, `/sources` shows the same wiring status.
+
+### Sources of truth
+
+| SoT | Status | What Jerry gets |
+| --- | --- | --- |
+| **ActivityWatch** | Wired | Window / web / AFK activity via `summarize_activity` (live AW or collector ingest) |
+| **Local files & notes** | Wired | Folder watcher + index: screenshots, notes, docs (`read_file`, `list_watched`, footnote search) |
+| **Google Drive** | Future | Shared docs / artifacts as evidence (not wired yet) |
+| **YouTube** | Future | Watch / publish signals as evidence (not wired yet) |
+| **GitHub** | WIP | PRs, issues, commits as shipping evidence |
+| **TimeHuddle** | Planned | Declared intent + reflections (sessions / outcomes) |
+
+Until Drive, YouTube, GitHub, and TimeHuddle are wired, Jerry should say **no evidence from \<source\>** rather than inventing those signals.
+
+### Tools (today)
+
+| Tool | SoT | Role |
+| --- | --- | --- |
+| `summarize_activity` | ActivityWatch | Natural-language time range → activity summary |
+| `search_hybrid` / `search_fts` / `search_literal` | Local notes | Footnote MCP search (preferred when available) |
+| `search_memory` | Local index | Basic vector search fallback |
+| `read_file` / `list_watched` / `read_document` | Local files | Read captured or indexed content |
+| `index_document` | Local index | Embed / upsert a document for later search |
+| `schedule_followup` | Scheduler | Wake the session later (agent session alarms) |
+
+MCP expose (Cursor / Claude) currently offers `summarize_activity`, `search_memory`, and `schedule_followup` — see [docs/mcp-server.md](docs/mcp-server.md).
 
 ---
 

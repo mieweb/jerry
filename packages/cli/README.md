@@ -10,7 +10,6 @@ See [plan.md §8](../../plan.md) for CLI contract details.
 
 ```bash
 jerry summarize my last 2 hours
-jerry -txt quick note for the day
 jerry --session session-1754239-a9f2 what did I ship?
 ```
 

@@ -602,6 +602,7 @@ async function runTurn(
   const spinner = startSpinner(color);
   const toolsUsed: string[] = [];
   let printedText = false;
+  let finishReason: string | undefined;
 
   const noteTool = (name: string) => {
     if (name && !toolsUsed.includes(name)) toolsUsed.push(name);
@@ -627,6 +628,7 @@ async function runTurn(
 
         case "finish":
           spinner.stop();
+          finishReason = event.finishReason;
           event.toolsUsed?.forEach(noteTool);
           break;
 
@@ -657,6 +659,12 @@ async function runTurn(
     writeLines([`  ${dim(`error: ${detail}`, color)}`]);
   } finally {
     spinner.stop();
+  }
+
+  if (finishReason === "length") {
+    writeLines([
+      `  ${dim("[truncated] model hit the output token limit — ask Jerry to continue", color)}`,
+    ]);
   }
 
   writeLines(renderToolsFooter(toolsUsed, { color }));
