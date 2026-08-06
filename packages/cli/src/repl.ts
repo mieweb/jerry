@@ -13,8 +13,24 @@ import {
   describeProfile,
   getCwdContext,
   loadConfig,
+  type JerryConfig,
   type ProfileSummary,
 } from "./profile.js";
+import {
+  currentRuntimeId,
+  defaultModelForRuntime,
+  describeRuntimeReadiness,
+  findModel,
+  findRuntime,
+  isModelReady,
+  modelsForRuntime,
+  parseModelRef,
+  refHintForRuntime,
+  resolveModelApiKey,
+  RUNTIMES,
+  toProfileModel,
+  type ModelInfo,
+} from "./catalog.js";
 
 const PROMPT = "jerry \u203a ";
 const WORKING = "\u2026working\u2026";
@@ -60,7 +76,12 @@ export interface ReplContext {
 export type SlashResult =
   | { kind: "output"; lines: string[] }
   | { kind: "exit"; lines: string[] }
-  | { kind: "new-session"; sessionId: string; lines: string[] };
+  | { kind: "new-session"; sessionId: string; lines: string[] }
+  /**
+   * `/runtime ozwell` or `/model sonnet`. The caller owns the profile, so it
+   * applies the change; this keeps command parsing free of side effects.
+   */
+  | { kind: "set"; scope: "runtime" | "model"; target: string; lines: string[] };
 
 /**
  * Same shape the server generates, so resume is symmetric.
@@ -164,12 +185,263 @@ export function renderFarewell(
 }
 
 /**
+ * Two-column list used by the `/runtime` and `/model` hints.
+ */
+function renderTable(
+  rows: Array<[string, string]>,
+  color: boolean
+): string[] {
+  const width = Math.max(...rows.map(([left]) => left.length));
+  return rows.map(
+    ([left, right]) => `    ${left.padEnd(width)}   ${dim(right, color)}`
+  );
+}
+
+/**
+ * Apply a model to the session profile.
+ *
+ * The profile travels with every request, so this is purely a client-side
+ * edit — the next turn reaches the new provider with no server state to sync.
+ * Nothing is written to disk: the change lasts as long as the session.
+ *
+ * A missing key is reported instead of applied, because a half-applied profile
+ * would fail on the next turn with a raw HTTP 401.
+ *
+ * @param config - Mutated in place.
+ * @param context - Its `profile` summary is refreshed to match.
+ */
+function applyModel(
+  model: ModelInfo,
+  config: JerryConfig,
+  context: ReplContext,
+  env: NodeJS.ProcessEnv
+): void {
+  // egress is left as the user configured it: describeProfile reports the
+  // coercion the worker applies for cloud runtimes, so returning to a local
+  // model restores the stricter policy instead of inheriting the looser one.
+  // A local model also drops the key, so it stops riding along on every
+  // request. The endpoint survives, since ozwell needs the configured host.
+  config.profile = {
+    ...config.profile,
+    runtime: model.runtime,
+    model: toProfileModel(model),
+    endpoint: model.endpoint ?? config.profile?.endpoint,
+    apiKey: resolveModelApiKey(model, env),
+  };
+  context.profile = describeProfile(config.profile);
+}
+
+/**
+ * The bare model id out of a profile reference, for prose that would read
+ * badly with a full `https://host/v1#model` in the middle of it.
+ */
+function shortModel(profileModel: string): string {
+  const hash = profileModel.indexOf("#");
+  if (hash !== -1) return profileModel.slice(hash + 1);
+  return profileModel.replace(/^ollama:/, "");
+}
+
+function renderMissingKey(
+  model: ModelInfo,
+  context: ReplContext,
+  color: boolean
+): string[] {
+  return [
+    `  ${model.requiredEnvKey} isn't set, so I can't use ${model.displayName}.`,
+    `  ${dim(`export ${model.requiredEnvKey}=your-key-here`, color)}`,
+    `  Check the API keys and try again. Staying on ${shortModel(context.profile.model)}.`,
+  ];
+}
+
+function renderSwitched(
+  model: ModelInfo,
+  context: ReplContext,
+  color: boolean
+): string[] {
+  return [
+    `  Now using ${bold(model.displayName, color)}`,
+    `  ${dim("runtime", color)}  ${context.profile.runtime}${dim("   model", color)}  ${model.id}${dim("   egress", color)}  ${context.profile.egress}`,
+  ];
+}
+
+/**
+ * `/runtime` with no argument: what is in use, and what else is available.
+ */
+export function renderRuntimeList(
+  context: ReplContext,
+  options: { color?: boolean; env?: NodeJS.ProcessEnv } = {}
+): string[] {
+  const color = options.color ?? useColor();
+  const env = options.env ?? process.env;
+
+  const rows = RUNTIMES.map(({ id, summary }): [string, string] => {
+    const { ready, missing } = describeRuntimeReadiness(id, env);
+    const marker = id === context.profile.runtime ? "\u2022 " : "  ";
+    return [
+      `${marker}${id}`,
+      ready ? summary : `needs ${missing.join(" or ")}`,
+    ];
+  });
+
+  return [
+    `  ${dim("runtime", color)}  ${context.profile.runtime}   ${dim("egress", color)}  ${context.profile.egress}`,
+    "",
+    `  ${dim("available runtimes", color)}`,
+    ...renderTable(rows, color),
+    "",
+    `  ${dim("switch with /runtime <name>", color)}`,
+  ];
+}
+
+/**
+ * `/model` with no argument: what is in use, and what the current runtime offers.
+ *
+ * Models are scoped to the runtime in use, because that is what a switch can
+ * reach without also changing the runtime.
+ */
+export function renderModelList(
+  context: ReplContext,
+  options: { color?: boolean; env?: NodeJS.ProcessEnv } = {}
+): string[] {
+  const color = options.color ?? useColor();
+  const env = options.env ?? process.env;
+  const runtime = currentRuntimeId(context.profile.runtime);
+  const models = modelsForRuntime(runtime);
+
+  const rows = models.map((model): [string, string] => {
+    const marker = context.profile.model.endsWith(model.id) ? "\u2022 " : "  ";
+    return [
+      `${marker}${model.id}`,
+      isModelReady(model, env)
+        ? model.displayName
+        : `needs ${model.requiredEnvKey}`,
+    ];
+  });
+
+  const refHint = refHintForRuntime(runtime);
+
+  return [
+    `  ${dim("model", color)}  ${context.profile.model}`,
+    "",
+    `  ${dim(`available in ${runtime}`, color)}`,
+    ...renderTable(rows, color),
+    "",
+    `  ${dim("switch with /model <name>", color)}`,
+    ...(refHint ? [`  ${dim(`or ${refHint}`, color)}`] : []),
+  ];
+}
+
+/**
+ * `/runtime <name>`: move to another runtime, landing on a model it can call.
+ */
+export function setRuntime(
+  target: string,
+  config: JerryConfig,
+  context: ReplContext,
+  options: { color?: boolean; env?: NodeJS.ProcessEnv } = {}
+): { success: boolean; lines: string[] } {
+  const color = options.color ?? useColor();
+  const env = options.env ?? process.env;
+
+  const runtime = findRuntime(target);
+  if (!runtime) {
+    return {
+      success: false,
+      lines: [
+        `  I don't know the runtime "${target}".`,
+        `  ${dim(`available: ${RUNTIMES.map((r) => r.id).join(SEPARATOR)}`, color)}`,
+      ],
+    };
+  }
+
+  const model = defaultModelForRuntime(runtime.id, env);
+  if (!model) {
+    return {
+      success: false,
+      lines: [`  ${runtime.id} has no models configured.`],
+    };
+  }
+
+  if (!isModelReady(model, env)) {
+    const { missing } = describeRuntimeReadiness(runtime.id, env);
+    return {
+      success: false,
+      lines: [
+        `  I can't use ${runtime.id} yet \u2014 ${missing.join(" or ")} ${missing.length > 1 ? "are" : "is"} not set.`,
+        `  ${dim(`export ${missing[0]}=your-key-here`, color)}`,
+        `  Check the API keys and try again. Staying on ${context.profile.runtime}.`,
+      ],
+    };
+  }
+
+  applyModel(model, config, context, env);
+  return { success: true, lines: renderSwitched(model, context, color) };
+}
+
+/**
+ * `/model <name>`: move to another model within the runtime in use.
+ *
+ * A name that belongs to a different runtime is reported rather than applied,
+ * so a switch never silently changes the runtime under the user.
+ */
+export function setModel(
+  target: string,
+  config: JerryConfig,
+  context: ReplContext,
+  options: { color?: boolean; env?: NodeJS.ProcessEnv } = {}
+): { success: boolean; lines: string[] } {
+  const color = options.color ?? useColor();
+  const env = options.env ?? process.env;
+  const runtime = currentRuntimeId(context.profile.runtime);
+
+  const model =
+    findModel(target, runtime) ?? parseModelRef(target);
+
+  if (!model) {
+    const elsewhere = findModel(target);
+    if (elsewhere) {
+      return {
+        success: false,
+        lines: [
+          `  ${elsewhere.id} isn't available in the ${runtime} runtime.`,
+          `  It lives in ${elsewhere.runtime} \u2014 ${dim(`/runtime ${elsewhere.runtime}`, color)} first.`,
+        ],
+      };
+    }
+    return {
+      success: false,
+      lines: [
+        `  I don't know the model "${target}" in the ${runtime} runtime.`,
+        `  ${dim(`available: ${modelsForRuntime(runtime).map((m) => m.id).join(SEPARATOR)}`, color)}`,
+      ],
+    };
+  }
+
+  if (model.runtime !== runtime) {
+    return {
+      success: false,
+      lines: [
+        `  That reference is for the ${model.runtime} runtime, not ${runtime}.`,
+        `  ${dim(`/runtime ${model.runtime}`, color)} first.`,
+      ],
+    };
+  }
+
+  if (!isModelReady(model, env)) {
+    return { success: false, lines: renderMissingKey(model, context, color) };
+  }
+
+  applyModel(model, config, context, env);
+  return { success: true, lines: renderSwitched(model, context, color) };
+}
+
+/**
  * Handle a `/`-prefixed line entirely client-side.
  */
 export function runSlashCommand(
   input: string,
   context: ReplContext,
-  options: { color?: boolean } = {}
+  options: { color?: boolean; env?: NodeJS.ProcessEnv } = {}
 ): SlashResult {
   const color = options.color ?? useColor();
   const [rawCommand, ...rest] = input.trim().split(/\s+/);
@@ -184,8 +456,8 @@ export function runSlashCommand(
           `  ${dim("/help", color)}      show this list`,
           `  ${dim("/session", color)}   current session ID and resume command`,
           `  ${dim("/new", color)}       start a fresh session (stays in the REPL)`,
-          `  ${dim("/runtime", color)}   show the resolved runtime`,
-          `  ${dim("/model", color)}     show the resolved model`,
+          `  ${dim("/runtime [name]", color)}  list runtimes, or switch to one`,
+          `  ${dim("/model [name]", color)}    list this runtime's models, or switch to one`,
           `  ${dim("/sources", color)}   show which sources of truth are wired up`,
           `  ${dim("/dryrun <task>", color)}  show what would run, without sending`,
           `  ${dim("q \u00b7 exit \u00b7 quit \u00b7 Ctrl+C", color)}  end the session`,
@@ -213,15 +485,21 @@ export function runSlashCommand(
     }
 
     case "/runtime":
+      if (argument) {
+        return { kind: "set", scope: "runtime", target: argument, lines: [] };
+      }
       return {
         kind: "output",
-        lines: [`  ${dim("runtime", color)}  ${context.profile.runtime}   ${dim("egress", color)}  ${context.profile.egress}`],
+        lines: renderRuntimeList(context, { color, env: options.env }),
       };
 
     case "/model":
+      if (argument) {
+        return { kind: "set", scope: "model", target: argument, lines: [] };
+      }
       return {
         kind: "output",
-        lines: [`  ${dim("model", color)}  ${context.profile.model}`],
+        lines: renderModelList(context, { color, env: options.env }),
       };
 
     case "/sources":
@@ -472,6 +750,10 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
         writeLines(result.lines);
         if (result.kind === "exit") break;
         if (result.kind === "new-session") context.sessionId = result.sessionId;
+        if (result.kind === "set") {
+          const apply = result.scope === "runtime" ? setRuntime : setModel;
+          writeLines(apply(result.target, config, context, { color }).lines);
+        }
         prompt();
         continue;
       }

@@ -19,6 +19,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { loadEnv } from "./load-env.js";
 import { loadConfig } from "./profile.js";
 
 function log(message: string): void {
@@ -68,6 +69,7 @@ function createUpstreamConnector(endpoint: URL): () => Promise<Client> {
  * Start the Jerry MCP stdio server. Blocks until stdin closes.
  */
 export async function startMcpServer(): Promise<void> {
+  loadEnv();
   const { url } = loadConfig();
   const endpoint = new URL("/v1/mcp", url);
   const getUpstream = createUpstreamConnector(endpoint);

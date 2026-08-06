@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run as agentRun } from "@mieweb/cloud-agent-cli";
 import { isGreeting } from "./greeting.js";
+import { loadEnv } from "./load-env.js";
 import { loadConfig } from "./profile.js";
 
 /**
@@ -76,6 +77,7 @@ function readVersion(): string {
  * Run the Jerry CLI.
  */
 export async function run(): Promise<void> {
+  loadEnv();
   const args = process.argv.slice(2);
   const entry = resolveEntry(args);
 

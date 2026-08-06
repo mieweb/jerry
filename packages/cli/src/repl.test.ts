@@ -7,8 +7,11 @@ import {
   renderFarewell,
   renderToolsFooter,
   runSlashCommand,
+  setModel,
+  setRuntime,
   type ReplContext,
 } from "./repl.ts";
+import { describeProfile, type JerryConfig } from "./profile.ts";
 import { resolveEntry } from "./run.ts";
 
 const context: ReplContext = {
@@ -18,6 +21,9 @@ const context: ReplContext = {
 };
 
 const plain = { color: false };
+
+/** Keeps the developer's own shell out of readiness assertions. */
+const noKeys = {} as NodeJS.ProcessEnv;
 
 describe("isExitCommand", () => {
   it("accepts the documented exit keywords", () => {
@@ -129,9 +135,40 @@ describe("runSlashCommand", () => {
     assert.match(result.sessionId, /^session-\d+-[a-z0-9]+$/);
   });
 
-  it("/runtime and /model report resolved values", () => {
-    assert.match(runSlashCommand("/runtime", context, plain).lines.join("\n"), /local/);
-    assert.match(runSlashCommand("/model", context, plain).lines.join("\n"), /llama3\.1:8b/);
+  it("/runtime reports the current value and lists the alternatives", () => {
+    const text = runSlashCommand("/runtime", context, {
+      ...plain,
+      env: noKeys,
+    }).lines.join("\n");
+
+    assert.match(text, /runtime {2}local/);
+    for (const id of ["local", "byo-cloud", "ozwell"]) {
+      assert.ok(text.includes(id), id);
+    }
+    assert.match(text, /switch with \/runtime <name>/);
+  });
+
+  it("/runtime marks a runtime whose keys are missing", () => {
+    const text = runSlashCommand("/runtime", context, {
+      ...plain,
+      env: noKeys,
+    }).lines.join("\n");
+
+    assert.match(text, /needs ANTHROPIC_API_KEY or OPENAI_API_KEY/);
+    assert.match(text, /needs OZWELL_API_KEY/);
+  });
+
+  it("/model lists only the current runtime's models", () => {
+    const text = runSlashCommand("/model", context, {
+      ...plain,
+      env: noKeys,
+    }).lines.join("\n");
+
+    assert.match(text, /model {2}ollama:llama3\.1:8b/);
+    assert.match(text, /available in local/);
+    assert.ok(text.includes("qwen2.5:3b"));
+    assert.ok(!text.includes("gpt-5.6-sol"), "no models from other runtimes");
+    assert.match(text, /ollama:<name>/);
   });
 
   it("/sources reports source status", () => {
@@ -155,6 +192,228 @@ describe("runSlashCommand", () => {
   it("unknown commands point at /help", () => {
     const text = runSlashCommand("/nope", context, plain).lines.join("\n");
     assert.match(text, /unknown command \/nope/);
+  });
+
+  it("/runtime and /model with an argument hand the change to the caller", () => {
+    const cases: Array<[string, "runtime" | "model", string]> = [
+      ["/model sonnet 5", "model", "sonnet 5"],
+      ["/runtime ozwell", "runtime", "ozwell"],
+    ];
+
+    for (const [input, scope, target] of cases) {
+      const result = runSlashCommand(input, context, plain);
+      assert.strictEqual(result.kind, "set", input);
+      if (result.kind !== "set") continue;
+      assert.strictEqual(result.scope, scope);
+      assert.strictEqual(result.target, target);
+    }
+  });
+});
+
+/** Fresh fixtures: a change mutates both the config and the context. */
+function fixture() {
+  const config: JerryConfig = {
+    url: "http://127.0.0.1:8787",
+    profile: { runtime: "local", model: "ollama:llama3.1:8b", egress: "deny" },
+  };
+  return {
+    config,
+    context: {
+      sessionId: "session-1",
+      url: config.url,
+      profile: describeProfile(config.profile),
+    } satisfies ReplContext,
+  };
+}
+
+const anthropicOnly = { ANTHROPIC_API_KEY: "sk-ant-test" } as NodeJS.ProcessEnv;
+
+describe("setRuntime", () => {
+  it("moves to a cloud runtime and lands on a model it can call", () => {
+    const { config, context: ctx } = fixture();
+    const result = setRuntime("byo-cloud", config, ctx, {
+      ...plain,
+      env: anthropicOnly,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(config.profile?.runtime, "byo-cloud");
+    assert.strictEqual(
+      config.profile?.model,
+      "https://api.anthropic.com/v1#claude-sonnet-5"
+    );
+    assert.strictEqual(config.profile?.apiKey, "sk-ant-test");
+    assert.match(result.lines.join("\n"), /Now using Claude Sonnet 5/);
+  });
+
+  it("picks the model whose key is actually present", () => {
+    const { config, context: ctx } = fixture();
+    setRuntime("byo-cloud", config, ctx, {
+      ...plain,
+      env: { OPENAI_API_KEY: "sk-openai" } as NodeJS.ProcessEnv,
+    });
+
+    assert.match(String(config.profile?.model), /#gpt-5\.6-sol$/);
+  });
+
+  it("accepts runtime aliases", () => {
+    const { config, context: ctx } = fixture();
+    const result = setRuntime("cloud", config, ctx, {
+      ...plain,
+      env: anthropicOnly,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(ctx.profile.runtime, "byo-cloud");
+  });
+
+  it("reports allow-model egress for cloud runtimes", () => {
+    const { config, context: ctx } = fixture();
+    setRuntime("byo-cloud", config, ctx, { ...plain, env: anthropicOnly });
+    assert.strictEqual(ctx.profile.egress, "allow-model");
+  });
+
+  it("leaves a broader egress policy alone", () => {
+    const { config, context: ctx } = fixture();
+    config.profile = { ...config.profile, egress: "allow-tools" };
+    setRuntime("byo-cloud", config, ctx, { ...plain, env: anthropicOnly });
+    assert.strictEqual(ctx.profile.egress, "allow-tools");
+  });
+
+  it("restores strict egress and drops the key when returning to local", () => {
+    const { config, context: ctx } = fixture();
+    setRuntime("byo-cloud", config, ctx, { ...plain, env: anthropicOnly });
+    setRuntime("local", config, ctx, { ...plain, env: anthropicOnly });
+
+    assert.strictEqual(ctx.profile.runtime, "local");
+    assert.strictEqual(ctx.profile.model, "ollama:llama3.1:8b");
+    assert.strictEqual(ctx.profile.egress, "deny");
+    assert.strictEqual(config.profile?.apiKey, undefined);
+  });
+
+  it("names every key that would unlock the runtime, and stays put", () => {
+    const { config, context: ctx } = fixture();
+    const result = setRuntime("byo-cloud", config, ctx, {
+      ...plain,
+      env: noKeys,
+    });
+    const text = result.lines.join("\n");
+
+    assert.strictEqual(result.success, false);
+    assert.match(text, /ANTHROPIC_API_KEY or OPENAI_API_KEY are not set/);
+    assert.match(text, /Check the API keys and try again/);
+    assert.strictEqual(config.profile?.runtime, "local");
+  });
+
+  it("uses the singular when only one key is missing", () => {
+    const { config, context: ctx } = fixture();
+    const result = setRuntime("ozwell", config, ctx, { ...plain, env: noKeys });
+
+    assert.strictEqual(result.success, false);
+    assert.match(result.lines.join("\n"), /OZWELL_API_KEY is not set/);
+  });
+
+  it("lists the runtimes for an unknown name", () => {
+    const { config, context: ctx } = fixture();
+    const result = setRuntime("anthropic", config, ctx, plain);
+    const text = result.lines.join("\n");
+
+    assert.strictEqual(result.success, false);
+    assert.match(text, /don't know the runtime "anthropic"/);
+    assert.match(text, /local/);
+    assert.match(text, /byo-cloud/);
+    assert.strictEqual(config.profile?.runtime, "local");
+  });
+});
+
+describe("setModel", () => {
+  it("moves between models in the current runtime", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel("qwen", config, ctx, { ...plain, env: noKeys });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(config.profile?.model, "ollama:qwen2.5:3b");
+    assert.strictEqual(config.profile?.apiKey, undefined);
+    assert.strictEqual(ctx.profile.egress, "deny");
+  });
+
+  it("accepts the full model id as listed", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel("qwen2.5:3b", config, ctx, { ...plain, env: noKeys });
+    assert.strictEqual(result.success, true);
+  });
+
+  it("points at the right runtime for a model that lives elsewhere", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel("gpt-5.6-sol", config, ctx, {
+      ...plain,
+      env: anthropicOnly,
+    });
+    const text = result.lines.join("\n");
+
+    assert.strictEqual(result.success, false);
+    assert.match(text, /gpt-5\.6-sol isn't available in the local runtime/);
+    assert.match(text, /\/runtime byo-cloud/);
+    assert.strictEqual(config.profile?.runtime, "local");
+  });
+
+  it("lists this runtime's models for an unknown name", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel("hal 9000", config, ctx, plain);
+    const text = result.lines.join("\n");
+
+    assert.strictEqual(result.success, false);
+    assert.match(text, /don't know the model "hal 9000" in the local runtime/);
+    assert.match(text, /llama3\.1:8b/);
+    assert.ok(!text.includes("gpt-5.6-sol"), "only the current runtime's models");
+  });
+
+  it("names the missing variable and keeps the current model", () => {
+    const { config, context: ctx } = fixture();
+    setRuntime("byo-cloud", config, ctx, { ...plain, env: anthropicOnly });
+    const result = setModel("gpt-5.6-sol", config, ctx, {
+      ...plain,
+      env: anthropicOnly,
+    });
+    const text = result.lines.join("\n");
+
+    assert.strictEqual(result.success, false);
+    assert.match(text, /OPENAI_API_KEY isn't set, so I can't use GPT-5\.6 Sol/);
+    assert.match(text, /export OPENAI_API_KEY=/);
+    assert.match(text, /Staying on claude-sonnet-5\./);
+    assert.match(String(config.profile?.model), /claude-sonnet-5$/);
+  });
+
+  it("accepts a raw ollama ref for a model outside the catalog", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel("ollama:mistral", config, ctx, {
+      ...plain,
+      env: noKeys,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(config.profile?.model, "ollama:mistral");
+  });
+
+  it("rejects a raw ref that belongs to another runtime", () => {
+    const { config, context: ctx } = fixture();
+    const result = setModel(
+      "https://api.groq.com/openai/v1#llama-3.1-70b",
+      config,
+      ctx,
+      { ...plain, env: noKeys }
+    );
+
+    assert.strictEqual(result.success, false);
+    assert.match(result.lines.join("\n"), /for the byo-cloud runtime, not local/);
+  });
+
+  it("emits no ANSI codes when color is off", () => {
+    for (const target of ["qwen", "gpt-5.6-sol", "hal 9000", "ollama:mistral"]) {
+      const { config, context: ctx } = fixture();
+      const result = setModel(target, config, ctx, { ...plain, env: noKeys });
+      assert.ok(!result.lines.join("\n").includes("\u001b["), target);
+    }
   });
 });
 
