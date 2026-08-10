@@ -458,7 +458,7 @@ flowchart TD
 
 **Depends on:** 5a + 5b (can parallel 5c after those land)
 
-**Goal:** `post_youtube` (upload), `fetch_youtube` (metadata).
+**Goal:** `post_youtube` (upload), `fetch_youtube` (metadata), `fetch_youtube_transcript` (captions/transcript).
 
 **Files:**
 
@@ -468,22 +468,28 @@ flowchart TD
 **Tasks:**
 
 - Implement upload + metadata tools; `ask` by default
+- Implement `fetch_youtube_transcript` (captions.list/download) with query→video resolution
 - Mock YouTube API tests
 - Manual upload with approval
 
 **Acceptance:** `jerry upload this to youtube` → approval prompt → user confirms → video uploaded.
+`jerry get me a transcript of the <title keywords> video` → approval prompt → user confirms → transcript returned.
 
 **PR checklist:**
 
 - [x] `post_youtube` and `fetch_youtube` implemented
+- [x] `fetch_youtube_transcript` implemented
 - [x] Wired into `createJerryTools()` with `ask`
-- [x] Mock API tests pass (24 tests); manual upload pending 5f
+- [x] Mock API tests pass (41 tests); manual upload pending 5f
 
 **Notes:**
 
-- OAuth scopes now include both Drive (`drive.readonly`) and YouTube (`youtube.upload`, `youtube.readonly`). Existing Drive-only tokens require re-consent via `/v1/oauth/google/start`.
+- OAuth scopes now include both Drive (`drive.readonly`) and YouTube (`youtube.upload`, `youtube.readonly`, `youtube.force-ssl`). Existing Drive-only tokens require re-consent via `/v1/oauth/google/start`.
 - Upload limited to 100MB (multipart); larger files need YouTube Studio or resumable upload (out of scope).
 - `readVideoFile` injected via `IntegrationDeps` in `create-tools.ts` (Node `fs/promises`).
+- `fetch_youtube_transcript` only works for videos owned by the authenticated account (Captions API restriction) and resolves a bare `query` (title/keywords) to a `videoId` in the same call, so the model never needs a separate lookup step.
+- Video resolution by `query` scans the user's ~50 most recent uploads and scores titles by keyword overlap (filler words like "video"/"youtube"/"transcript" stripped) rather than exact-title search — YouTube's `search.list` with `forMine=true` matches private uploads too literally for natural-language requests (e.g. "get me a transcript of the Jerry command line tool video" now matches "Jerry Command line tool: generate work reports from the terminal").
+- Agent instructions (`packages/jerry-app/src/agent.ts`) explicitly steer transcript/caption requests to `fetch_youtube_transcript` instead of `fetch_youtube`, which previously got misselected for natural-language requests without an explicit video ID.
 
 ---
 
@@ -541,9 +547,8 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] Drive + YouTube acceptance scenarios verified manually
+- [x] Drive + YouTube acceptance scenarios verified manually
 - [x] Manual integration tests documented (`docs/manual.md` §19, `packages/jerry-app/README.md`)
-- [x] Phase-2 plan status updated
 - [x] Time Huddle still pinned (5e unchanged)
 
 ---
@@ -684,16 +689,16 @@ flowchart TD
 
 ## Slice Summary
 
-| Slice                        | Branch                         | Dependencies | Est. Files | Key Deliverable                             |
-| ---------------------------- | ------------------------------ | ------------ | ---------- | ------------------------------------------- |
-| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None         | 5          | Complete deferred tools; real vector search |
-| 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                    |
-| 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                         |
-| 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                  |
+| Slice                        | Branch                         | Dependencies | Est. Files | Key Deliverable                                              |
+| ---------------------------- | ------------------------------ | ------------ | ---------- | ------------------------------------------------------------ |
+| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None         | 5          | Complete deferred tools; real vector search                  |
+| 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                                     |
+| 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                                          |
+| 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                                   |
 | 5. Integrations              | `phase2/slice-5`               | Slice 2      | 5a–5f      | 5a–5d ✅ + docs; live acceptance pending; Time Huddle pinned |
-| 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                   |
-| 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os              |
-| 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                         |
+| 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                                    |
+| 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os                               |
+| 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                                          |
 
 ---
 
