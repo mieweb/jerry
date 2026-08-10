@@ -8,6 +8,7 @@ import {
   createJerryToolsWithMcp,
   ensureMcpTools,
   executePendingApproval,
+  reloadMcpTools,
   resetMcpToolsCache,
   setMcpToolsCacheForTest,
 } from "./create-tools.js";
@@ -156,6 +157,49 @@ describe("ensureMcpTools fallback", () => {
     });
     assert.ok(turnTools.search_memory);
     assert.equal(turnTools.search_hybrid, undefined);
+  });
+});
+
+const ctxStub = {
+  sessionId: "test",
+  db: {} as never,
+  scheduleWake: async () => {},
+  suspendForUser: () => {},
+  suspendForApproval: () => {},
+};
+
+describe("reloadMcpTools", () => {
+  let originalDisabled: string | undefined;
+
+  beforeEach(() => {
+    originalDisabled = process.env.JERRY_MCP_DISABLED;
+    resetMcpToolsCache();
+  });
+
+  afterEach(() => {
+    if (originalDisabled === undefined) {
+      delete process.env.JERRY_MCP_DISABLED;
+    } else {
+      process.env.JERRY_MCP_DISABLED = originalDisabled;
+    }
+    resetMcpToolsCache();
+  });
+
+  it("drops the cached tool set and reconnects", async () => {
+    process.env.JERRY_MCP_DISABLED = "true";
+
+    // Stand in for a footnote server that was connected before a rebuild.
+    setMcpToolsCacheForTest({
+      search_hybrid: { description: "stale" } as never,
+    });
+    assert.ok(createJerryToolsWithMcp(ctxStub).search_hybrid);
+
+    const tools = await reloadMcpTools();
+
+    assert.equal(tools, undefined);
+    const refreshed = createJerryToolsWithMcp(ctxStub);
+    assert.equal(refreshed.search_hybrid, undefined);
+    assert.ok(refreshed.search_memory);
   });
 });
 
