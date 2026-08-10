@@ -14,6 +14,7 @@ import {
   createJerryTools,
   type ToolContext,
   type ToolEgress,
+  type IntegrationDeps,
 } from "@mieweb/jerry-tools/runtime";
 import {
   createFootnoteMcpTools,
@@ -21,6 +22,12 @@ import {
 } from "@mieweb/jerry-tools/mcp";
 import { isMcpAvailable, resolveMcpServers } from "./mcp-config.js";
 import { createDbApprovalStore } from "./approval-store.js";
+import {
+  createGoogleOAuthClient,
+  resolveUserId,
+  type GoogleOAuthEnv,
+} from "./google-oauth.js";
+import type { OAuthClient } from "@mieweb/jerry-tools/integrations/oauth";
 
 type JerryToolSet = ReturnType<typeof createJerryTools>;
 
@@ -34,6 +41,8 @@ let mcpLoadGeneration = 0;
 let cachedDispositions: Record<string, ToolEgress> | undefined;
 /** Cached egress policy from the latest ensureMcpTools call. */
 let cachedEgressPolicy: string | undefined;
+/** Cached Google OAuth client from the latest ensureMcpTools call. */
+let cachedGoogleOAuthClient: OAuthClient | undefined;
 
 function profileKey(profile?: PrivacyProfile): string {
   return JSON.stringify(profile?.mcp?.servers ?? "default");
@@ -78,12 +87,21 @@ export async function loadMcpTools(
 }
 
 /**
+ * Environment bindings needed for tool setup.
+ */
+export interface ToolEnv extends GoogleOAuthEnv {
+  DB?: ToolContext["db"];
+}
+
+/**
  * Ensure MCP tools are loaded for the given profile before a turn runs.
- * Also caches profile dispositions for the ask-egress flow.
+ * Also caches profile dispositions for the ask-egress flow and sets up
+ * Google OAuth client if configured.
  * Safe to call from fetch and queue handlers; concurrent calls coalesce.
  */
 export async function ensureMcpTools(
-  profile?: PrivacyProfile
+  profile?: PrivacyProfile,
+  env?: ToolEnv
 ): Promise<JerryToolSet | undefined> {
   const resolved = mergeProfile(profile ?? {});
   const key = profileKey(resolved);
@@ -91,6 +109,11 @@ export async function ensureMcpTools(
   // Always update disposition cache from latest profile
   cachedDispositions = resolved.tools as Record<string, ToolEgress> | undefined;
   cachedEgressPolicy = resolved.egress;
+
+  // Set up Google OAuth client if env is provided and configured
+  if (env?.DB) {
+    cachedGoogleOAuthClient = createGoogleOAuthClient(env, env.DB);
+  }
 
   if (mcpToolsCache && mcpLoadedForProfileKey === key) {
     return mcpToolsCache;
@@ -126,10 +149,42 @@ export async function ensureMcpTools(
 export function createJerryToolsWithMcp(ctx: ToolContext): JerryToolSet {
   // Enrich context with dispositions and approval store for ask-egress flow
   const shouldWrapAsk = cachedEgressPolicy === "allow-tools" && !!cachedDispositions;
+
+  // Build integration deps for Google OAuth if client is configured
+  let integrations: IntegrationDeps | undefined;
+  if (cachedGoogleOAuthClient) {
+    const oauthClient = cachedGoogleOAuthClient;
+    integrations = {
+      getGoogleAccessToken: async () => {
+        const userId = await resolveUserId(ctx.db, ctx.sessionId);
+        return oauthClient.getValidAccessToken(userId);
+      },
+      getGoogleAuthUrl: (state?: string) => oauthClient.getAuthorizationUrl(state),
+      readVideoFile: async (filePath: string) => {
+        const { readFile } = await import("node:fs/promises");
+        const bytes = new Uint8Array(await readFile(filePath));
+        const ext = filePath.toLowerCase().split(".").pop() ?? "";
+        const mimeTypes: Record<string, string> = {
+          mp4: "video/mp4",
+          mov: "video/quicktime",
+          avi: "video/x-msvideo",
+          wmv: "video/x-ms-wmv",
+          flv: "video/x-flv",
+          webm: "video/webm",
+          mkv: "video/x-matroska",
+          "3gp": "video/3gpp",
+          m4v: "video/x-m4v",
+        };
+        return { bytes, mimeType: mimeTypes[ext] ?? "video/mp4", size: bytes.byteLength };
+      },
+    };
+  }
+
   const enrichedCtx: ToolContext = {
     ...ctx,
     dispositions: cachedDispositions,
     approvalStore: shouldWrapAsk ? createDbApprovalStore(ctx.db) : undefined,
+    integrations,
   };
 
   const tools = createJerryTools(enrichedCtx, {
@@ -156,6 +211,7 @@ export function resetMcpToolsCache(): void {
   mcpLoadGeneration++;
   cachedDispositions = undefined;
   cachedEgressPolicy = undefined;
+  cachedGoogleOAuthClient = undefined;
 }
 
 /**
@@ -186,6 +242,59 @@ export async function getPendingToolName(
     .first<{ tool_name: string }>();
 
   return result?.tool_name ?? null;
+}
+
+export interface ApprovedToolExecution {
+  toolName: string;
+  args: unknown;
+  result: unknown;
+}
+
+/**
+ * Execute the latest pending approval with its originally validated arguments.
+ *
+ * Approval resume must not rely on the model to recreate the tool call: smaller
+ * local models may emit a JSON example or prose instead of an actual call. The
+ * pending row is the source of truth for both tool name and arguments.
+ */
+export async function executePendingApproval(
+  ctx: ToolContext
+): Promise<ApprovedToolExecution | null> {
+  const pending = await ctx.db
+    .prepare(
+      `SELECT id, tool_name, args_json FROM tool_approvals
+       WHERE session_id = ? AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .bind(ctx.sessionId)
+    .first<{ id: string; tool_name: string; args_json: string | null }>();
+
+  if (!pending) return null;
+
+  const args = pending.args_json ? JSON.parse(pending.args_json) : {};
+  const now = new Date().toISOString();
+  const granted = await ctx.db
+    .prepare(
+      `UPDATE tool_approvals SET status = 'granted', updated_at = ?
+       WHERE id = ? AND status = 'pending'`
+    )
+    .bind(now, pending.id)
+    .run();
+
+  if ((granted.meta?.changes ?? 0) === 0) return null;
+
+  const tools = createJerryToolsWithMcp(ctx);
+  const selectedTool = tools[pending.tool_name];
+  if (!selectedTool?.execute) {
+    throw new Error(`Approved tool "${pending.tool_name}" is unavailable`);
+  }
+
+  const result = await selectedTool.execute(args, {
+    toolCallId: `approved-${pending.id}`,
+    messages: [],
+  });
+
+  return { toolName: pending.tool_name, args, result };
 }
 
 /**

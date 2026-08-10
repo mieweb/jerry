@@ -13,8 +13,14 @@ import { createScheduleFollowupTool } from "./schedule-followup.js";
 import { createReadFileTool, createListWatchedTool } from "./file-tools.js";
 import { createIndexDocumentTool } from "./index-document.js";
 import { wrapToolsWithAsk } from "./wrap-ask.js";
+import { createReadDriveTool } from "../integrations/drive.js";
+import {
+  createPostYoutubeTool,
+  createFetchYoutubeTool,
+  createFetchYoutubeTranscriptTool,
+} from "../integrations/youtube.js";
 
-export type { ToolContext, StoredActivityEvent, ToolEgress, ApprovalStore } from "./types.js";
+export type { ToolContext, StoredActivityEvent, ToolEgress, ApprovalStore, IntegrationDeps } from "./types.js";
 export { createSummarizeActivityTool } from "./summarize-activity.js";
 export { createSearchMemoryTool } from "./search-memory.js";
 export { createScheduleFollowupTool } from "./schedule-followup.js";
@@ -22,6 +28,12 @@ export { createReadFileTool, createListWatchedTool } from "./file-tools.js";
 export { createIndexDocumentTool } from "./index-document.js";
 export { getEmbedding, isOllamaAvailable } from "./embeddings.js";
 export { wrapToolWithAsk, wrapToolsWithAsk, type WaitingForApprovalResult } from "./wrap-ask.js";
+export { createReadDriveTool } from "../integrations/drive.js";
+export {
+  createPostYoutubeTool,
+  createFetchYoutubeTool,
+  createFetchYoutubeTranscriptTool,
+} from "../integrations/youtube.js";
 
 export interface CreateJerryToolsOptions {
   /** Optional MCP tools to merge (e.g. from footnote adapter) */
@@ -48,6 +60,43 @@ export function createJerryTools(
     read_file: createReadFileTool(ctx),
     list_watched: createListWatchedTool(ctx),
     index_document: createIndexDocumentTool(ctx),
+    read_drive: createReadDriveTool({
+      getAccessToken: async () => {
+        if (!ctx.integrations?.getGoogleAccessToken) {
+          throw new Error("Google OAuth not configured");
+        }
+        return ctx.integrations.getGoogleAccessToken();
+      },
+      getAuthorizationUrl: ctx.integrations?.getGoogleAuthUrl,
+    }),
+    post_youtube: createPostYoutubeTool({
+      getAccessToken: async () => {
+        if (!ctx.integrations?.getGoogleAccessToken) {
+          throw new Error("Google OAuth not configured");
+        }
+        return ctx.integrations.getGoogleAccessToken();
+      },
+      getAuthorizationUrl: ctx.integrations?.getGoogleAuthUrl,
+      readVideoFile: ctx.integrations?.readVideoFile,
+    }),
+    fetch_youtube: createFetchYoutubeTool({
+      getAccessToken: async () => {
+        if (!ctx.integrations?.getGoogleAccessToken) {
+          throw new Error("Google OAuth not configured");
+        }
+        return ctx.integrations.getGoogleAccessToken();
+      },
+      getAuthorizationUrl: ctx.integrations?.getGoogleAuthUrl,
+    }),
+    fetch_youtube_transcript: createFetchYoutubeTranscriptTool({
+      getAccessToken: async () => {
+        if (!ctx.integrations?.getGoogleAccessToken) {
+          throw new Error("Google OAuth not configured");
+        }
+        return ctx.integrations.getGoogleAccessToken();
+      },
+      getAuthorizationUrl: ctx.integrations?.getGoogleAuthUrl,
+    }),
   };
 
   // Merge MCP tools if provided (they take precedence for overlapping names)

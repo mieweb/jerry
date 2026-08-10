@@ -323,9 +323,9 @@ flowchart TD
 
 ## Slice 5: External Integrations
 
-**Status:** Not started — branch from `development` (Slices 1–4 merged). Split into subslices below.
+**Status:** In progress — 5a–5d + 5f docs done on `phase2/slice-5`. Live acceptance pending manual verification before PR.
 
-**Umbrella branch:** `phase2/external-integrations` (or merge subslices into it for the final PR)
+**Umbrella branch:** `phase2/slice-5` (subslices merge here; final PR targets `development`)
 
 **PR target:** `development`
 
@@ -350,6 +350,8 @@ flowchart TD
 
 ### Subslice 5a: Approval & `ask` egress
 
+**Status:** Done — on `phase2/slice-5` (`7a05be2`)
+
 **Branch:** `phase2/integrations-approval`
 
 **Depends on:** None (Slice 2 already on `development`)
@@ -367,14 +369,16 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] Call-time `ask` wrapper implemented
-- [ ] Profile tool disposition keys aligned with tool names
-- [ ] `waiting_for_approval` surfaced to user
-- [ ] Mock ask-tool tests pass
+- [x] Call-time `ask` wrapper implemented (`wrap-ask.ts` + worker resume grant)
+- [x] Profile tool disposition keys aligned with tool names (`read_drive` / `post_youtube` / `fetch_youtube`)
+- [x] `waiting_for_approval` surfaced to user (tool result + `suspendForApproval`)
+- [x] Mock ask-tool tests pass (`wrap-ask.test.ts`)
 
 ---
 
 ### Subslice 5b: Shared OAuth + encrypted tokens
+
+**Status:** Done — on `phase2/slice-5` (`5d88861`)
 
 **Branch:** `phase2/integrations-oauth`
 
@@ -396,23 +400,39 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] Shared OAuth helper module functional
-- [ ] OAuth token storage encrypted at rest
-- [ ] Mock OAuth tests pass
+- [x] Shared OAuth helper module functional (`createOAuthClient`)
+- [x] OAuth token storage encrypted at rest (AES-GCM via `JERRY_OAUTH_ENCRYPTION_KEY`)
+- [x] Mock OAuth tests pass (`oauth.test.ts`)
 
 ---
 
 ### Subslice 5c: Google Drive
 
+**Status:** Done — on `phase2/slice-5`
+
 **Branch:** `phase2/integrations-drive`
 
-**Depends on:** 5a + 5b
+**Depends on:** 5a + 5b (satisfied on `phase2/slice-5`)
 
 **Goal:** `read_drive` (list/fetch files) via Google OAuth2.
 
 **Files:**
 
 - `packages/tools/src/integrations/drive.ts` (new)
+- `packages/tools/src/integrations/drive.test.ts` (new)
+- `packages/jerry-app/src/google-oauth.ts` (new)
+
+**Env vars (new for Google OAuth):**
+
+- `GOOGLE_CLIENT_ID` — Google OAuth2 client ID
+- `GOOGLE_CLIENT_SECRET` — Google OAuth2 client secret
+- `GOOGLE_OAUTH_REDIRECT_URI` — Callback URL (e.g. `http://127.0.0.1:8787/v1/oauth/google/callback`)
+- `JERRY_OAUTH_ENCRYPTION_KEY` — 32-byte key (64 hex or 44 base64) for token encryption (existing)
+
+**OAuth routes added:**
+
+- `GET /v1/oauth/google/start?userId=` — Redirects to Google consent screen
+- `GET /v1/oauth/google/callback` — Exchanges code for tokens, stores encrypted
 
 **Tasks:**
 
@@ -424,13 +444,15 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] `read_drive` implemented with OAuth2
-- [ ] Wired into `createJerryTools()` with `ask`
-- [ ] Mock API tests pass; manual scenario verified
+- [x] `read_drive` implemented with OAuth2 (`drive.ts`)
+- [x] Wired into `createJerryTools()` with `ask` (via `IntegrationDeps` in `ToolContext`)
+- [x] Mock API tests pass (`drive.test.ts` — 16 tests); manual scenario pending 5f
 
 ---
 
 ### Subslice 5d: YouTube
+
+**Status:** Done — on `phase2/slice-5`
 
 **Branch:** `phase2/integrations-youtube`
 
@@ -441,6 +463,7 @@ flowchart TD
 **Files:**
 
 - `packages/tools/src/integrations/youtube.ts` (new)
+- `packages/tools/src/integrations/youtube.test.ts` (new)
 
 **Tasks:**
 
@@ -452,9 +475,15 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] `post_youtube` and `fetch_youtube` implemented
-- [ ] Wired into `createJerryTools()` with `ask`
-- [ ] Mock API tests pass; manual upload verified
+- [x] `post_youtube` and `fetch_youtube` implemented
+- [x] Wired into `createJerryTools()` with `ask`
+- [x] Mock API tests pass (24 tests); manual upload pending 5f
+
+**Notes:**
+
+- OAuth scopes now include both Drive (`drive.readonly`) and YouTube (`youtube.upload`, `youtube.readonly`). Existing Drive-only tokens require re-consent via `/v1/oauth/google/start`.
+- Upload limited to 100MB (multipart); larger files need YouTube Studio or resumable upload (out of scope).
+- `readVideoFile` injected via `IntegrationDeps` in `create-tools.ts` (Node `fs/promises`).
 
 ---
 
@@ -490,7 +519,9 @@ flowchart TD
 
 ### Subslice 5f: Wire, docs, slice closeout
 
-**Branch:** merge into `phase2/external-integrations` (final PR)
+**Status:** Docs complete — on `phase2/slice-5`. Live acceptance pending manual verification.
+
+**Branch:** `phase2/slice-5` (final PR to `development` after live verification)
 
 **Depends on:** 5c + 5d (and 5e only if unpinned)
 
@@ -511,9 +542,9 @@ flowchart TD
 **PR checklist:**
 
 - [ ] Drive + YouTube acceptance scenarios verified manually
-- [ ] Manual integration tests documented
-- [ ] Phase-2 plan status updated
-- [ ] Time Huddle still pinned (or 5e completed if unblocked)
+- [x] Manual integration tests documented (`docs/manual.md` §19, `packages/jerry-app/README.md`)
+- [x] Phase-2 plan status updated
+- [x] Time Huddle still pinned (5e unchanged)
 
 ---
 
@@ -659,7 +690,7 @@ flowchart TD
 | 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                    |
 | 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                         |
 | 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                  |
-| 5. Integrations              | `phase2/external-integrations` | Slice 2      | 5a–5f      | Drive + YouTube + ask/OAuth; Time Huddle pinned |
+| 5. Integrations              | `phase2/slice-5`               | Slice 2      | 5a–5f      | 5a–5d ✅ + docs; live acceptance pending; Time Huddle pinned |
 | 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                   |
 | 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os              |
 | 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                         |

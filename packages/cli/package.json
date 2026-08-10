@@ -13,6 +13,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./load-env": {
+      "types": "./src/load-env.ts",
+      "default": "./src/load-env.ts"
     }
   },
   "scripts": {

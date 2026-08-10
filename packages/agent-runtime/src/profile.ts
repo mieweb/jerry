@@ -48,6 +48,7 @@ export const DEFAULT_PRIVACY_PROFILE: PrivacyProfile = {
         read_drive: "ask",
         post_youtube: "ask",
         fetch_youtube: "ask",
+        fetch_youtube_transcript: "ask",
     },
 };
 

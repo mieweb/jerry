@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import {
   createJerryToolsWithMcp,
   ensureMcpTools,
+  executePendingApproval,
   resetMcpToolsCache,
   setMcpToolsCacheForTest,
 } from "./create-tools.js";
@@ -155,5 +156,91 @@ describe("ensureMcpTools fallback", () => {
     });
     assert.ok(turnTools.search_memory);
     assert.equal(turnTools.search_hybrid, undefined);
+  });
+});
+
+describe("executePendingApproval", () => {
+  afterEach(() => {
+    delete process.env.JERRY_MCP_DISABLED;
+    resetMcpToolsCache();
+  });
+
+  it("executes the stored tool and arguments without another model turn", async () => {
+    let approvalStatus = "pending";
+    const storedArgs = { videoId: "jFW_SmeLRrY", maxResults: 1 };
+
+    const db = {
+      prepare(sql: string) {
+        let bindings: unknown[] = [];
+        return {
+          bind(...values: unknown[]) {
+            bindings = values;
+            return this;
+          },
+          async first() {
+            if (sql.includes("args_json") && approvalStatus === "pending") {
+              return {
+                id: "approval-1",
+                tool_name: "fetch_youtube",
+                args_json: JSON.stringify(storedArgs),
+              };
+            }
+            if (sql.includes("status = 'granted'") && approvalStatus === "granted") {
+              return { id: "approval-1" };
+            }
+            return null;
+          },
+          async run() {
+            if (sql.includes("SET status = 'granted'") && bindings[1] === "approval-1") {
+              approvalStatus = "granted";
+              return { meta: { changes: 1 } };
+            }
+            if (sql.includes("SET status = 'expired'") && approvalStatus === "granted") {
+              approvalStatus = "expired";
+              return { meta: { changes: 1 } };
+            }
+            return { meta: { changes: 0 } };
+          },
+        };
+      },
+    } as never;
+
+    process.env.JERRY_MCP_DISABLED = "true";
+    await ensureMcpTools({
+      runtime: "local",
+      model: "ollama:llama3.1:8b",
+      egress: "allow-tools",
+      tools: { fetch_youtube: "ask" },
+    });
+
+    let receivedArgs: unknown;
+    setMcpToolsCacheForTest({
+      fetch_youtube: {
+        description: "test",
+        execute: async (args: unknown) => {
+          receivedArgs = args;
+          return {
+            error: false,
+            videos: [{ id: "jFW_SmeLRrY", title: "jerry-term: CLI for jerry (July 23)" }],
+          };
+        },
+      } as never,
+    });
+
+    const execution = await executePendingApproval({
+      sessionId: "session-1",
+      db,
+      scheduleWake: async () => {},
+      suspendForUser: () => {},
+      suspendForApproval: () => {},
+    });
+
+    assert.deepEqual(receivedArgs, storedArgs);
+    assert.equal(execution?.toolName, "fetch_youtube");
+    assert.deepEqual(execution?.result, {
+      error: false,
+      videos: [{ id: "jFW_SmeLRrY", title: "jerry-term: CLI for jerry (July 23)" }],
+    });
+    assert.equal(approvalStatus, "expired");
   });
 });

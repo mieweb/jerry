@@ -24,6 +24,7 @@
 16. [Configuration Files](#16-configuration-files)
 17. [Submodule Management](#17-submodule-management)
 18. [Phase 2 Slice 3 — MCP Expose](#18-phase-2-slice-3--mcp-expose)
+19. [Phase 2 Slice 5 — External Integrations (Drive + YouTube)](#19-phase-2-slice-5--external-integrations-drive--youtube)
 
 ---
 
@@ -1239,6 +1240,139 @@ curl -s -X POST http://localhost:8787/v1/mcp \
 | HTTP transport | Stateless (fresh server per request), matching the Cloudflare Workers execution model. |
 
 More detail: [mcp-server.md](./mcp-server.md).
+
+---
+
+## 19. Phase 2 Slice 5 — External Integrations (Drive + YouTube)
+
+Jerry can access Google Drive and YouTube through OAuth2-authenticated tools. All three tools have `"ask"` disposition — the session pauses for user approval before executing.
+
+| Tool | Description |
+|------|-------------|
+| `read_drive` | List/search files in Google Drive, optionally fetch content |
+| `post_youtube` | Upload a video to YouTube (max 100 MB multipart) |
+| `fetch_youtube` | Fetch video metadata or search the user's channel |
+
+**Note:** Time Huddle integration (5e) is pinned until API availability is confirmed.
+
+### Prerequisites
+
+Before starting, ensure all of the following are satisfied:
+
+- [ ] Worker running: `pnpm dev` on `http://127.0.0.1:8787`
+- [ ] Local D1 migrations applied (includes `oauth_tokens`): `pnpm exec mieweb --target local d1 migrations apply`
+- [ ] Google Cloud OAuth2 client configured (see below)
+- [ ] Google + encryption keys in repo **`.env`** (see [`.env.example`](../.env.example)): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `JERRY_OAUTH_ENCRYPTION_KEY`
+- [ ] Worker restarted after editing `.env` (`pnpm dev` loads `.env` via `@mieweb/jerry-cli/load-env`)
+
+### Google Cloud OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
+2. Create an OAuth 2.0 Client ID (Web application type)
+3. Add authorized redirect URI: `http://127.0.0.1:8787/v1/oauth/google/callback`
+4. Enable the Google Drive API and YouTube Data API v3 in your project
+5. Copy the Client ID and Client Secret into `.env`
+
+### Step 1 — Put keys in `.env`, then start the worker
+
+```bash
+# .env (gitignored) — see .env.example
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
+GOOGLE_OAUTH_REDIRECT_URI=http://127.0.0.1:8787/v1/oauth/google/callback
+JERRY_OAUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)
+
+pnpm dev
+```
+
+`pnpm dev` and `jerry` both load the nearest repo `.env` automatically (existing shell exports still win).
+
+Verify:
+
+```bash
+curl http://localhost:8787/health
+# Then confirm OAuth is wired (should redirect to Google, not JSON error):
+curl -sI 'http://127.0.0.1:8787/v1/oauth/google/start?userId=local' | head -5
+```
+
+If you still see `{"error":"Google OAuth not configured"}`, the three `GOOGLE_*` vars were missing when the worker started — fix `.env` and restart.
+
+---
+
+### Step 2 — Connect Google account
+
+Open in your browser:
+
+```
+http://127.0.0.1:8787/v1/oauth/google/start?userId=local
+```
+
+This redirects to Google consent. Approve access to Drive and YouTube. On success, you'll see "Google account connected."
+
+**Re-consent:** If you previously authorized Drive-only, you must re-consent to enable YouTube scopes.
+
+---
+
+### Step 3 — Scenario A: Drive query (one-shot with `--approve`)
+
+```bash
+# Prefer a cloud runtime that tool-calls reliably; --approve forces egress=allow-tools
+JERRY_RUNTIME=byo-cloud jerry --approve what files did I share today
+```
+
+`--approve` sends the message, and if the session parks on `waiting_for_approval`, immediately approves and executes `read_drive` in the same command.
+
+Without `--approve` (two-step):
+
+```bash
+JERRY_EGRESS=allow-tools JERRY_RUNTIME=byo-cloud jerry what files did I share today
+# then:
+jerry --session <sessionId> yes, go ahead
+```
+
+---
+
+### Step 4 — Scenario B: YouTube upload
+
+```bash
+JERRY_RUNTIME=byo-cloud jerry --approve upload /path/to/test-video.mp4 to youtube with title "Test Upload"
+```
+
+Expected: `post_youtube` executes (private upload) and returns the video ID.
+
+---
+
+### Step 5 — Needs-auth path
+
+To test the needs-auth flow, clear or invalidate your tokens, then ask Jerry to query Drive. The tool should return a message with an authorization URL pointing to `/v1/oauth/google/start`.
+
+---
+
+### Acceptance checklist
+
+Use this to check off the PR acceptance criteria:
+
+- [ ] OAuth connect succeeds; "Google account connected" shown
+- [ ] Drive query after approval returns shared/recent files
+- [ ] YouTube upload after approval completes (private upload)
+- [ ] Needs-auth path returns authorization URL when tokens are missing
+- [ ] Mock tests pass: `pnpm --filter @mieweb/jerry-tools test` (oauth/drive/youtube)
+- [ ] **Acceptance scenarios verified manually** ← this section completes this item
+
+---
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| `Google OAuth not configured` | Missing env vars in worker process | Put `GOOGLE_*` in repo `.env`, restart `pnpm dev` |
+| `Authorization failed` / Could not exchange code | Usually missing `oauth_tokens` table | Run `pnpm exec mieweb --target local d1 migrations apply`, then retry `/v1/oauth/google/start` (codes are one-time use) |
+| `invalid_client` on consent | Wrong Client ID/Secret | Verify credentials in Google Cloud Console |
+| `redirect_uri_mismatch` | Redirect URI not in authorized list | Add `http://127.0.0.1:8787/v1/oauth/google/callback` to OAuth client |
+| YouTube upload fails with 403 | YouTube API not enabled | Enable YouTube Data API v3 in Google Cloud Console |
+| Upload exceeds size limit | Video > 100 MB | Use a smaller video or upload via YouTube Studio |
+| Approval never resumes | Wrong session ID | Use `--session <sessionId>` from the first request, or `--approve` |
+| Tools not available / model prints fake JSON | `egress` not `allow-tools` | Use `jerry --approve …` or set `JERRY_EGRESS=allow-tools` |
 
 ---
 

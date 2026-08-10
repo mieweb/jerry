@@ -27,6 +27,27 @@ export interface ApprovalStore {
 }
 
 /**
+ * Video file data for YouTube upload.
+ */
+export interface VideoFileData {
+  bytes: Uint8Array;
+  mimeType: string;
+  size: number;
+}
+
+/**
+ * Integration dependencies for external services (Google Drive, YouTube, etc.).
+ */
+export interface IntegrationDeps {
+  /** Get valid Google access token (refreshing if needed) */
+  getGoogleAccessToken?: () => Promise<string>;
+  /** Get Google authorization URL for user to connect account */
+  getGoogleAuthUrl?: (state?: string) => string;
+  /** Read video file from local filesystem for YouTube upload */
+  readVideoFile?: (filePath: string) => Promise<VideoFileData>;
+}
+
+/**
  * Context passed to tools during execution.
  * Contains bindings and control functions.
  */
@@ -49,6 +70,10 @@ export interface ToolContext {
   dispositions?: Record<string, ToolEgress>;
   /** Approval store for ask-disposition tools (optional) */
   approvalStore?: ApprovalStore;
+  /** User ID for OAuth token lookup (optional, defaults to "local") */
+  userId?: string;
+  /** Integration dependencies for external services (optional) */
+  integrations?: IntegrationDeps;
 }
 
 /**
