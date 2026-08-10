@@ -143,6 +143,14 @@ flowchart TD
 - Final merge uses **direct Ollama API** for embeddings (`nomic-embed-text`), not footnote embedder — reverted for CI hermeticity in `64d1481`
 - Footnote hybrid search deferred to **Slice 2** via MCP consume
 - Worker HTTP routes (`/v1/files`, `/v1/index`) landed in hotfix PR (not in original #4)
+- **Follow-up (`phase2/collector-footnote-ingest`, merged into `phase2/slice-5` at `4cfca80`):** collector → footnote pipeline only indexed files that changed *while the collector was running*; anything already on disk at startup, or the vector-only `VECTORS` write, stayed invisible to `search_memory`/`search_hybrid`. Reworked the folder watcher to:
+  - Backfill-ingest every file already present at startup, then keep the existing incremental watch for later edits
+  - Drive an incremental `docidx` build directly (chunking, BM25, keyword search all work without an embedder — the vector write is now opt-in via `--legacy-vector-ingest`)
+  - Skip `node_modules`/`.git`/`.data`/`dist`/etc., which previously exhausted file descriptors when pointed at a repo root
+  - Reject unknown CLI arguments (a shell-mangled `' --watch'` used to silently start with no watcher at all)
+  - Add `--footnote-root`, `--embedding-model`, `--no-footnote`, `--no-backfill` flags
+  - Debounce and serialize `docidx` builds (footnote's sqlite index has no WAL/app-level locking), and add `POST /v1/mcp/reload` so the worker respawns its footnote MCP child after a build instead of holding a stale handle
+  - Documented end-to-end in `docs/manual.md` §20 ("Adding a Folder to Collector Ingestion") and `README.md`
 
 ---
 
@@ -205,6 +213,7 @@ flowchart TD
 - Footnote hybrid search uses footnote's `.footnote` index (separate from Jerry's Slice 1 vector store)
 - MCP requires stdio transport (local/CLI); Cloudflare Workers cannot spawn child processes
 - `vendor/cloud` pin stays at `ecb8aa7` (fetchable). Local SSE/`--verbose` commit `63e0642` was never pushed to `mieweb/cloud` and broke CI submodule checkout; leave that work for an upstream cloud PR / later Jerry pin bump
+- **Follow-up (`phase2/collector-footnote-ingest`):** added `POST /v1/mcp/reload` and MCP client tracking in `create-tools.ts` so a `docidx` rebuild (triggered by the Slice 1 collector startup backfill) respawns the footnote MCP child instead of leaving the worker holding a stale handle on a since-rebuilt index
 
 ---
 
@@ -373,6 +382,10 @@ flowchart TD
 - [x] Profile tool disposition keys aligned with tool names (`read_drive` / `post_youtube` / `fetch_youtube`)
 - [x] `waiting_for_approval` surfaced to user (tool result + `suspendForApproval`)
 - [x] Mock ask-tool tests pass (`wrap-ask.test.ts`)
+
+**Notes / deviations:**
+
+- **Follow-up (`phase2/collector-footnote-ingest`):** `packages/cli/src/approve.ts` and `vendor/cloud`'s `cloud-agent-cli` printed `session: <id>` only when a turn suspended, so a normal (non-approval) reply gave the user no way to resume it. Both now print `session: <id>` unconditionally after every turn.
 
 ---
 
