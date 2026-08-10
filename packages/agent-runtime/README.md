@@ -122,6 +122,10 @@ The default profile runs fully local with no network egress:
 
 For cloud runtimes (`byo-cloud` / `ozwell`), egress is automatically normalized to `allow-model` if left at `deny`.
 
+### Integration tools (Drive, YouTube)
+
+Integration tools (`read_drive`, `post_youtube`, `fetch_youtube`) require `egress: "allow-tools"` to be available. Under `deny` or `allow-model`, these tools are filtered out at turn start. With `allow-tools`, they pass through but require call-time approval (`"ask"` disposition).
+
 See [plan.md §4](../../plan.md) for the full trust and data-path control design.
 
 ## Environment Variables

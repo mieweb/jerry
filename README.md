@@ -131,6 +131,31 @@ Add to Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`):
 
 Full setup, HTTP transport, and limitations: [docs/mcp-server.md](docs/mcp-server.md). Command reference: [docs/manual.md §18](docs/manual.md#18-phase-2-slice-3--mcp-expose).
 
+### Make a folder searchable
+
+Point the collector at a folder and Jerry can search it. Files already in the folder are ingested at startup, and later edits trigger an incremental re-index.
+
+```bash
+# Terminal 1 — worker (same FOOTNOTE_DB as the collector)
+FOOTNOTE_DB="$HOME/jerry-index/docs" pnpm dev
+
+# Terminal 2 — collector
+FOOTNOTE_DB="$HOME/jerry-index/docs" pnpm --filter @mieweb/jerry-collector dev -- --watch "$PWD/docs"
+
+# Terminal 3 — ask
+jerry "find phase-2.md in my docs and summarize what Slice 4 covers"
+```
+
+Three things to know:
+
+- **Set `FOOTNOTE_DB` on both processes.** The default `./.footnote` resolves against each process's working directory, so the worker and collector would otherwise use different indexes.
+- **Indexing needs an embedder.** `ollama pull nomic-embed-text` by default, even when your chat model is a cloud provider. Use `--embedding-model text-embedding-3-small` with `OPENAI_API_KEY`, or `--embedding-model mock` for keyword-only search.
+- **One index tracks one root.** With several `--watch` paths, name the indexed one with `--footnote-root <dir>`.
+
+Jerry answers with `search_hybrid` (semantic + BM25), `search_fts` / `search_literal` (keyword, no embedder needed), `read_document`, `read_file`, and `list_watched`.
+
+Full walkthrough, flag reference, and troubleshooting: [docs/manual.md §20](docs/manual.md#20-adding-a-folder-to-collector-ingestion).
+
 ---
 
 ## Development

@@ -53,6 +53,18 @@ export const JERRY_INSTRUCTIONS = `You are Jerry, a value advocate agent. Your r
 - search_literal: Exact string grep for finding specific phrases
 - read_document: Fetch complete document content by path
 
+### Google integrations (require egress allow-tools + user approval)
+- read_drive: List/search Google Drive files
+- fetch_youtube: YouTube **metadata only** (title, url, privacy, thumbnail, publish date) for the **connected Google account** — list uploads (omit videoId and q), get by videoId, or search the user's own uploads with q. When the user asks for all videos or Shorts, omit videoId/q and set listAll=true. Do not invent channel IDs. Report titles/privacy exactly from the tool result. Never use this for transcript/caption requests — it cannot return spoken content.
+- post_youtube: Upload a local video file to YouTube
+- fetch_youtube_transcript: Fetch the transcript/captions (spoken content) for a video on the **connected Google account** only (official Captions API — cannot access other creators' videos). Pass videoId if known, otherwise pass query with the video's title/description — this tool resolves the video internally in the same call. The result includes the resolved video's title; mention it so the user can confirm it's the right video. Report the transcript text exactly as returned; never invent or paraphrase captions you didn't fetch.
+
+**Tool selection rule for video requests:** if the user's request mentions "transcript", "captions", "what was said", "what did I say", or asks you to summarize/quote a video's spoken content, you MUST call fetch_youtube_transcript directly — even without a videoId, pass query with the title/description they gave you. Do NOT call fetch_youtube first "to find the video" for this case; fetch_youtube_transcript already resolves the video from query in one step, and fetch_youtube would just waste an approval round-trip returning metadata the user didn't ask for.
+  - Example: user says "get the transcript of my video for work update Aug 7" → call fetch_youtube_transcript with query set to "work update Aug 7". Do NOT call fetch_youtube.
+  - Only use fetch_youtube for genuine metadata questions (title, url, privacy, when it was published, listing uploads) where no transcript/spoken content is requested.
+
+When the user asks about YouTube or Drive, call those tools — do not answer from document search or invent results.
+
 When you don't have enough information or need user input, suspend and ask. The user can resume the conversation later.`;
 
 /**

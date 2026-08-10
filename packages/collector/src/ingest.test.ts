@@ -4,7 +4,7 @@
 
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { ingestFile, shouldIndex } from "./ingest.ts";
+import { ingestFile, isFootnoteIndexable, shouldIndex } from "./ingest.ts";
 
 let originalFetch: typeof globalThis.fetch;
 
@@ -126,5 +126,44 @@ describe("ingestFile", () => {
 
     assert.equal(result.success, false);
     assert.ok(result.error?.includes("Ingest error"));
+  });
+
+  it("uploads without indexing when index is false", async () => {
+    const calls: string[] = [];
+
+    globalThis.fetch = mock.fn(async (url: string | URL | Request) => {
+      calls.push(typeof url === "string" ? url : url.toString());
+      return { ok: true, text: async () => "" } as Response;
+    });
+
+    // Footnote owns the searchable index; the bucket upload still has to happen
+    // so read_file can resolve the path.
+    const result = await ingestFile("/path/to/file.md", "Hello", {
+      index: false,
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(result.uploaded, true);
+    assert.equal(result.indexed, false);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].includes("/v1/files/"));
+  });
+});
+
+describe("isFootnoteIndexable", () => {
+  it("accepts the formats docidx parses", () => {
+    for (const ext of [".md", ".txt", ".pdf", ".docx", ".xml"]) {
+      assert.equal(isFootnoteIndexable(ext), true);
+    }
+  });
+
+  it("rejects images and other formats", () => {
+    for (const ext of [".png", ".jpg", ".json", ".csv"]) {
+      assert.equal(isFootnoteIndexable(ext), false);
+    }
+  });
+
+  it("is case-insensitive", () => {
+    assert.equal(isFootnoteIndexable(".MD"), true);
   });
 });

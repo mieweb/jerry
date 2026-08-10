@@ -51,35 +51,35 @@ describe("filterTools", () => {
     it("removes tools marked as ask", () => {
       const tools = {
         aw: makeTool("aw"),
-        drive: makeTool("drive"),
+        read_drive: makeTool("read_drive"),
       };
       const profile: PrivacyProfile = {
         ...baseProfile,
         egress: "deny",
-        tools: { aw: "local", drive: "ask" },
+        tools: { aw: "local", read_drive: "ask" },
       };
 
       const result = filterTools(tools, profile);
       assert.ok(result);
       assert.ok("aw" in result);
-      assert.ok(!("drive" in result));
+      assert.ok(!("read_drive" in result));
     });
 
     it("removes tools marked as allow", () => {
       const tools = {
         aw: makeTool("aw"),
-        youtube: makeTool("youtube"),
+        post_youtube: makeTool("post_youtube"),
       };
       const profile: PrivacyProfile = {
         ...baseProfile,
         egress: "deny",
-        tools: { aw: "local", youtube: "allow" },
+        tools: { aw: "local", post_youtube: "allow" },
       };
 
       const result = filterTools(tools, profile);
       assert.ok(result);
       assert.ok("aw" in result);
-      assert.ok(!("youtube" in result));
+      assert.ok(!("post_youtube" in result));
     });
 
     it("removes tools not in disposition list", () => {
@@ -101,13 +101,13 @@ describe("filterTools", () => {
 
     it("returns undefined when all tools are filtered out", () => {
       const tools = {
-        drive: makeTool("drive"),
-        youtube: makeTool("youtube"),
+        read_drive: makeTool("read_drive"),
+        post_youtube: makeTool("post_youtube"),
       };
       const profile: PrivacyProfile = {
         ...baseProfile,
         egress: "deny",
-        tools: { drive: "ask", youtube: "allow" },
+        tools: { read_drive: "ask", post_youtube: "allow" },
       };
 
       const result = filterTools(tools, profile);
@@ -119,18 +119,18 @@ describe("filterTools", () => {
     it("behaves same as deny (only local tools allowed)", () => {
       const tools = {
         aw: makeTool("aw"),
-        drive: makeTool("drive"),
+        read_drive: makeTool("read_drive"),
       };
       const profile: PrivacyProfile = {
         ...baseProfile,
         egress: "allow-model",
-        tools: { aw: "local", drive: "ask" },
+        tools: { aw: "local", read_drive: "ask" },
       };
 
       const result = filterTools(tools, profile);
       assert.ok(result);
       assert.ok("aw" in result);
-      assert.ok(!("drive" in result));
+      assert.ok(!("read_drive" in result));
     });
   });
 
@@ -138,20 +138,20 @@ describe("filterTools", () => {
     it("passes through all tools", () => {
       const tools = {
         aw: makeTool("aw"),
-        drive: makeTool("drive"),
-        youtube: makeTool("youtube"),
+        read_drive: makeTool("read_drive"),
+        post_youtube: makeTool("post_youtube"),
       };
       const profile: PrivacyProfile = {
         ...baseProfile,
         egress: "allow-tools",
-        tools: { aw: "local", drive: "ask", youtube: "allow" },
+        tools: { aw: "local", read_drive: "ask", post_youtube: "allow" },
       };
 
       const result = filterTools(tools, profile);
       assert.ok(result);
       assert.ok("aw" in result);
-      assert.ok("drive" in result);
-      assert.ok("youtube" in result);
+      assert.ok("read_drive" in result);
+      assert.ok("post_youtube" in result);
     });
 
     it("passes through tools not in disposition list", () => {
