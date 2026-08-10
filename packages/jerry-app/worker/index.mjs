@@ -22,6 +22,7 @@ import {
   createJerryToolsWithMcp,
   ensureMcpTools,
   executePendingApproval,
+  reloadMcpTools,
 } from "../src/create-tools.ts";
 import {
   createGoogleOAuthClient,
@@ -346,6 +347,21 @@ export default {
       }
 
       return json({ ok: true, id: docId, path, embeddingDimensions: embedding.length });
+    }
+
+    // POST /v1/mcp/reload — respawn MCP servers after the collector rebuilds
+    // the footnote index (the running server holds a stale sqlite handle)
+    if (url.pathname === "/v1/mcp/reload" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      try {
+        const tools = await reloadMcpTools(body.profile, env);
+        return json({ ok: true, tools: tools ? Object.keys(tools) : [] });
+      } catch (err) {
+        return json(
+          { error: err instanceof Error ? err.message : String(err) },
+          500
+        );
+      }
     }
 
     // POST /v1/mcp — expose Jerry tools over the MCP Streamable HTTP transport

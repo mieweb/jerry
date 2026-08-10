@@ -19,6 +19,7 @@ import {
 import {
   createFootnoteMcpTools,
   createMcpClient,
+  type McpClient,
 } from "@mieweb/jerry-tools/mcp";
 import { isMcpAvailable, resolveMcpServers } from "./mcp-config.js";
 import { createDbApprovalStore } from "./approval-store.js";
@@ -36,6 +37,12 @@ let mcpLoadPromise: Promise<JerryToolSet | undefined> | undefined;
 let mcpLoadedForProfileKey: string | undefined;
 /** Monotonic generation so stale loads cannot overwrite a newer cache. */
 let mcpLoadGeneration = 0;
+
+/**
+ * Clients for the MCP servers currently connected, so reloadMcpTools() can shut
+ * their child processes down instead of orphaning them.
+ */
+let activeMcpClients: McpClient[] = [];
 
 /** Cached profile dispositions from the latest ensureMcpTools call. */
 let cachedDispositions: Record<string, ToolEgress> | undefined;
@@ -74,6 +81,7 @@ export async function loadMcpTools(
 
     if (config.name === "footnote") {
       Object.assign(merged, createFootnoteMcpTools(client));
+      activeMcpClients.push(client);
       console.warn(`[mcp] Footnote tools loaded via stdio`);
     } else {
       console.warn(
@@ -202,16 +210,51 @@ export function createJerryToolsWithMcp(ctx: ToolContext): JerryToolSet {
 }
 
 /**
- * Reset MCP cache (for tests).
+ * Drop cached MCP connections so the next ensureMcpTools() reconnects.
+ * Leaves dispositions and the OAuth client intact.
  */
-export function resetMcpToolsCache(): void {
+function resetMcpConnectionCache(): void {
   mcpToolsCache = undefined;
   mcpLoadPromise = undefined;
   mcpLoadedForProfileKey = undefined;
   mcpLoadGeneration++;
+}
+
+/**
+ * Reset MCP cache (for tests).
+ */
+export function resetMcpToolsCache(): void {
+  resetMcpConnectionCache();
+  activeMcpClients = [];
   cachedDispositions = undefined;
   cachedEgressPolicy = undefined;
   cachedGoogleOAuthClient = undefined;
+}
+
+/**
+ * Restart the MCP servers and reconnect.
+ *
+ * The footnote MCP child reads its manifest once at startup and keeps an open
+ * sqlite handle, so an index rebuilt underneath it is not reliably visible. The
+ * collector calls this after each successful build.
+ */
+export async function reloadMcpTools(
+  profile?: PrivacyProfile,
+  env?: ToolEnv
+): Promise<JerryToolSet | undefined> {
+  const clients = activeMcpClients;
+  activeMcpClients = [];
+
+  await Promise.all(
+    clients.map((client) =>
+      client.disconnect().catch((err: unknown) => {
+        console.warn(`[mcp] Failed to disconnect client: ${err}`);
+      })
+    )
+  );
+
+  resetMcpConnectionCache();
+  return ensureMcpTools(profile, env);
 }
 
 /**

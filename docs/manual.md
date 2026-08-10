@@ -25,6 +25,7 @@
 17. [Submodule Management](#17-submodule-management)
 18. [Phase 2 Slice 3 — MCP Expose](#18-phase-2-slice-3--mcp-expose)
 19. [Phase 2 Slice 5 — External Integrations (Drive + YouTube)](#19-phase-2-slice-5--external-integrations-drive--youtube)
+20. [Adding a Folder to Collector Ingestion](#20-adding-a-folder-to-collector-ingestion)
 
 ---
 
@@ -158,26 +159,32 @@ pnpm --filter @mieweb/jerry-collector dev
 What this does:
 - Runs `tsx src/cli.ts` inside `packages/collector`
 - Polls ActivityWatch at `$AW_URL` (default `http://localhost:5600`) every `$POLL_INTERVAL` ms (default `30000`)
-- Watches folders for file changes via `chokidar`
+- Watches folders for file changes via `chokidar`, including files that already exist at startup
 - POSTs events to `$JERRY_URL/v1/events` (default `http://127.0.0.1:8787/v1/events`)
+- Keeps a footnote index in sync with the watched folder so Jerry can search it
 
 **CLI flags (pass after `--`):**
 
 ```bash
-pnpm --filter @mieweb/jerry-collector dev -- \
-  --watch /path/to/folder \
-  --aw-url http://localhost:5600 \
-  --jerry-url http://127.0.0.1:8787 \
-  --poll-interval 15000
+pnpm --filter @mieweb/jerry-collector dev -- --watch /path/to/folder --poll-interval 15000
 ```
 
 | Flag | Alias | Default | Description |
 |------|-------|---------|-------------|
-| `--watch` | `-w` | — | Additional folder path to watch for changes |
+| `--watch` | `-w` | — | Folder to watch for changes (repeatable) |
+| `--footnote-root` | — | the single `--watch` path | Folder to keep in the footnote index |
+| `--embedding-model` | — | `ollama:nomic-embed-text` | Embedder for indexing: `ollama:<model>`, an OpenAI model, or `mock` |
+| `--no-footnote` | — | — | Do not maintain the footnote index |
+| `--no-backfill` | — | — | Skip files that already exist at startup |
+| `--legacy-vector-ingest` | — | — | Also embed text files into the `VECTORS` store |
 | `--aw-url` | — | `http://localhost:5600` | ActivityWatch base URL |
 | `--jerry-url` | — | `http://127.0.0.1:8787` | Jerry worker base URL |
 | `--poll-interval` | — | `30000` | ActivityWatch poll interval in milliseconds |
-| `--help` | — | — | Show help text |
+| `--help` | `-h` | — | Show help text |
+
+> Unknown arguments are now a fatal error. If a shell line continuation mangles a flag into `' --watch'`, the collector exits with a message instead of silently starting without a watcher.
+
+Full walkthrough for pointing the collector at a folder: [Section 20](#20-adding-a-folder-to-collector-ingestion).
 
 ---
 
@@ -1373,6 +1380,135 @@ Use this to check off the PR acceptance criteria:
 | Upload exceeds size limit | Video > 100 MB | Use a smaller video or upload via YouTube Studio |
 | Approval never resumes | Wrong session ID | Use `--session <sessionId>` from the first request, or `--approve` |
 | Tools not available / model prints fake JSON | `egress` not `allow-tools` | Use `jerry --approve …` or set `JERRY_EGRESS=allow-tools` |
+
+---
+
+## 20. Adding a Folder to Collector Ingestion
+
+This section covers pointing the collector at a folder so Jerry can search its contents. The collector watches the folder, pushes an activity event per file, and keeps a [footnote](https://github.com/mieweb/melvil-artipod-footnote) index in sync. Jerry then queries that index through the footnote MCP tools.
+
+```mermaid
+flowchart TD
+  files["Watched folder"] --> watcher["chokidar in the collector"]
+  watcher --> events["POST /v1/events<br/>feeds list_watched"]
+  watcher --> bucket["PUT /v1/files<br/>feeds read_file"]
+  watcher --> build["docidx build (debounced)"]
+  build --> index["FOOTNOTE_DB/index.sqlite"]
+  build --> reload["POST /v1/mcp/reload"]
+  index --> tools["search_hybrid / search_fts<br/>search_literal / read_document"]
+```
+
+### Prerequisites
+
+- [ ] `pnpm install` complete (submodules initialised — footnote lives in `vendor/footnote`)
+- [ ] Ollama running with the embedding model: `ollama pull nomic-embed-text`
+- [ ] Worker running: `pnpm dev`
+
+Ollama is required for **indexing** even if you run Jerry against a cloud chat model such as Anthropic, because Anthropic has no embeddings API. Two alternatives exist if you would rather not run Ollama:
+
+```bash
+# OpenAI embeddings
+OPENAI_API_KEY=sk-… --embedding-model text-embedding-3-small
+
+# No real embeddings; keyword search only
+--embedding-model mock
+```
+
+With `mock`, `search_fts` and `search_literal` work normally and `search_hybrid` returns meaningless similarity scores.
+
+### Step 1 — Choose the index location
+
+One footnote index tracks exactly one root directory. Building the same index against a different root **deletes** the previous root's documents, so give each corpus its own `FOOTNOTE_DB`:
+
+```bash
+export FOOTNOTE_DB=~/jerry-index/docs
+```
+
+The worker and the collector must agree on this path. Start the worker with the same value:
+
+```bash
+FOOTNOTE_DB=~/jerry-index/docs pnpm dev
+```
+
+### Step 2 — Start the collector on the folder
+
+Keep the command on one line. A stray backslash before `--watch` turns the flag into a literal `' --watch'` argument:
+
+```bash
+FOOTNOTE_DB=~/jerry-index/docs pnpm --filter @mieweb/jerry-collector dev -- --watch "$PWD/docs"
+```
+
+Expected output:
+
+```
+Jerry Collector
+===============
+AW URL: http://localhost:5600
+Jerry URL: http://127.0.0.1:8787
+Poll interval: 30000ms
+Watch paths: /Users/<you>/…/docs
+Footnote root: /Users/<you>/…/docs
+Footnote index: /Users/<you>/jerry-index/docs
+Backfill existing files: yes
+
+Collector running. Press Ctrl+C to stop.
+Starting folder watcher for: /Users/<you>/…/docs
+Initial scan complete: 14 existing file(s) ingested
+Building footnote index...
+Footnote index updated in 6.2s (/Users/<you>/jerry-index/docs)
+```
+
+`Initial scan complete` confirms the backfill: files already in the folder are ingested without being touched. ActivityWatch does not need to be running; the collector logs poll errors and keeps watching.
+
+### Step 3 — Ask Jerry
+
+```bash
+export JERRY_MODEL=ollama:qwen2.5:3b
+export NODE_OPTIONS='--import tsx'
+
+node packages/cli/bin/jerry.js search my notes about the phase 2 plan
+node packages/cli/bin/jerry.js find the file named phase-2.md
+```
+
+Jerry uses `search_hybrid` (vector + BM25) when embeddings are available, and `search_fts` / `search_literal` for keyword lookups. The keyword tools need no embedder at query time, so they still answer when Ollama is stopped.
+
+### Watching several folders
+
+The event stream supports any number of `--watch` paths, but footnote indexes one root. Name it explicitly:
+
+```bash
+pnpm --filter @mieweb/jerry-collector dev -- \
+  --watch ~/Screenshots --watch ~/Notes --footnote-root ~/Notes
+```
+
+Without `--footnote-root`, several watch paths disable footnote indexing rather than silently pruning one of them. To index two corpora, run two collectors with different `FOOTNOTE_DB` values, and point the worker at whichever one you want to query.
+
+### What gets ingested
+
+| Extension | Event | Bucket upload | Footnote index |
+|-----------|-------|---------------|----------------|
+| `.md` `.txt` `.xml` | yes | yes (< 100 KB) | yes |
+| `.pdf` `.docx` | yes | no | yes |
+| `.json` | yes | yes (< 100 KB) | no |
+| `.png` `.jpg` `.jpeg` `.gif` `.webp` | yes | no | no |
+
+Images are recorded as `screenshot` events with metadata only — there is no OCR. `node_modules`, `.git`, `.data`, `.footnote`, `dist`, `build`, `coverage`, and `.DS_Store` are always skipped.
+
+### Rebuild behaviour
+
+Builds are incremental: docidx skips files whose content hash is unchanged, and caches embeddings per chunk. A burst of edits is debounced into one build (3 s quiet period), and builds never overlap. After each successful build the collector calls `POST /v1/mcp/reload` so the worker respawns its footnote MCP child against the fresh index.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| `Unknown argument: " --watch"` | Shell line continuation mangled the flag | Put the command on one line |
+| `EMFILE: too many open files` | Watching a tree with huge ignored directories | Watch a narrower folder; the default ignores cover `node_modules` and `.git` |
+| `Footnote indexing disabled: several watch paths…` | More than one `--watch` and no root | Add `--footnote-root <dir>` |
+| Build fails with "No embedding provider available" | Ollama not running or model missing | `ollama pull nomic-embed-text`, confirm `curl http://localhost:11434/api/tags` |
+| Jerry finds nothing but the build succeeded | Worker and collector disagree on `FOOTNOTE_DB` | Export the same value for both processes |
+| Search results look stale | MCP reload did not reach the worker | Confirm the worker is up; restart `pnpm dev` |
+| `read_file` says "File not found" | Bucket keys are absolute paths | Pass the full absolute path, or use `read_document` with a search result path |
 
 ---
 

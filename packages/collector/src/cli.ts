@@ -2,85 +2,61 @@
  * Jerry collector CLI entry point.
  *
  * Usage:
- *   jerry-collector [--watch <path>] [--aw-url <url>] [--jerry-url <url>]
+ *   jerry-collector [--watch <path>] [--footnote-root <path>] [--jerry-url <url>]
  */
 
 import { createAwPoller } from "./aw-poller.js";
 import { createFolderWatcher } from "./folder-watcher.js";
-
-interface CliOptions {
-  watchPaths: string[];
-  awUrl: string;
-  jerryUrl: string;
-  pollInterval: number;
-}
-
-function parseArgs(args: string[]): CliOptions {
-  const options: CliOptions = {
-    watchPaths: [],
-    awUrl: process.env.AW_URL ?? "http://localhost:5600",
-    jerryUrl: process.env.JERRY_URL ?? "http://127.0.0.1:8787",
-    pollInterval: parseInt(process.env.POLL_INTERVAL ?? "30000", 10),
-  };
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-
-    if (arg === "--watch" || arg === "-w") {
-      const path = args[++i];
-      if (path) options.watchPaths.push(path);
-    } else if (arg === "--aw-url") {
-      options.awUrl = args[++i] ?? options.awUrl;
-    } else if (arg === "--jerry-url") {
-      options.jerryUrl = args[++i] ?? options.jerryUrl;
-    } else if (arg === "--poll-interval") {
-      options.pollInterval = parseInt(args[++i] ?? "30000", 10);
-    } else if (arg === "--help" || arg === "-h") {
-      printHelp();
-      process.exit(0);
-    }
-  }
-
-  return options;
-}
-
-function printHelp() {
-  console.log(`
-jerry-collector — Local sidecar that pushes activity data to Jerry
-
-Usage:
-  jerry-collector [options]
-
-Options:
-  -w, --watch <path>       Directory to watch for files (can be repeated)
-  --aw-url <url>           ActivityWatch API URL (default: http://localhost:5600)
-  --jerry-url <url>        Jerry API URL (default: http://127.0.0.1:8787)
-  --poll-interval <ms>     AW poll interval in milliseconds (default: 30000)
-  -h, --help               Show this help
-
-Environment variables:
-  AW_URL                   ActivityWatch API URL
-  JERRY_URL                Jerry API URL
-  POLL_INTERVAL            AW poll interval in milliseconds
-
-Examples:
-  jerry-collector
-  jerry-collector --watch ~/Screenshots --watch ~/Notes
-  jerry-collector --jerry-url http://localhost:8787
-`.trim());
-}
+import { createFootnoteIndexer, resolveFootnoteDbPath } from "./footnote-index.js";
+import {
+  CliUsageError,
+  formatHelp,
+  parseArgs,
+  resolveFootnoteRoot,
+  type CliOptions,
+} from "./cli-options.js";
 
 async function main() {
-  const options = parseArgs(process.argv.slice(2));
+  let options: CliOptions;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (err) {
+    if (err instanceof CliUsageError) {
+      console.error(err.message);
+      console.error("");
+      console.error(formatHelp());
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  if (options.help) {
+    console.log(formatHelp());
+    process.exit(0);
+  }
+
+  const footnoteRoot = resolveFootnoteRoot(options);
 
   console.log("Jerry Collector");
   console.log("===============");
   console.log(`AW URL: ${options.awUrl}`);
   console.log(`Jerry URL: ${options.jerryUrl}`);
   console.log(`Poll interval: ${options.pollInterval}ms`);
-  if (options.watchPaths.length > 0) {
-    console.log(`Watch paths: ${options.watchPaths.join(", ")}`);
+  console.log(
+    `Watch paths: ${
+      options.watchPaths.length > 0 ? options.watchPaths.join(", ") : "(none)"
+    }`
+  );
+  if (footnoteRoot) {
+    console.log(`Footnote root: ${footnoteRoot}`);
+    console.log(`Footnote index: ${resolveFootnoteDbPath()}`);
+  } else if (options.footnote && options.watchPaths.length > 1) {
+    console.warn(
+      "Footnote indexing disabled: several watch paths given but no --footnote-root. " +
+        "One index tracks one root."
+    );
   }
+  console.log(`Backfill existing files: ${options.backfill ? "yes" : "no"}`);
   console.log("");
 
   // Create AW poller
@@ -90,12 +66,29 @@ async function main() {
     pollInterval: options.pollInterval,
   });
 
+  const footnoteIndexer = footnoteRoot
+    ? createFootnoteIndexer({
+        root: footnoteRoot,
+        jerryUrl: options.jerryUrl,
+        embeddingModel: options.embeddingModel,
+      })
+    : null;
+
   // Create folder watcher if paths provided
   const folderWatcher =
     options.watchPaths.length > 0
       ? createFolderWatcher({
           jerryUrl: options.jerryUrl,
           watchPaths: options.watchPaths,
+          ingestExisting: options.backfill,
+          legacyVectorIngest: options.legacyVectorIngest,
+          onIndexable: () => footnoteIndexer?.schedule(),
+          onReady: () => {
+            if (footnoteIndexer) {
+              console.log("Building footnote index...");
+              void footnoteIndexer.flush();
+            }
+          },
         })
       : null;
 
@@ -108,6 +101,7 @@ async function main() {
     console.log("\nShutting down...");
     awPoller.stop();
     await folderWatcher?.stop();
+    await footnoteIndexer?.stop();
     process.exit(0);
   };
 

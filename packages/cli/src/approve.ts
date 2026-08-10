@@ -186,6 +186,10 @@ export async function runWithApprove(
     if (result.hadError) {
       process.exitCode = 1;
       console.log();
+      console.log(`session: ${sessionId}`);
+      if (toolsUsed.length > 0) {
+        console.log(`tools: ${toolsUsed.join(" · ")}`);
+      }
       return { sessionId, approved: false, toolsUsed };
     }
 
@@ -220,6 +224,7 @@ export async function runWithApprove(
     process.stdout.write(result.text);
   }
   console.log();
+  console.log(`session: ${sessionId}`);
   if (toolsUsed.length > 0) {
     console.log(`tools: ${toolsUsed.join(" · ")}`);
   }

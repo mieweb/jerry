@@ -143,6 +143,14 @@ flowchart TD
 - Final merge uses **direct Ollama API** for embeddings (`nomic-embed-text`), not footnote embedder — reverted for CI hermeticity in `64d1481`
 - Footnote hybrid search deferred to **Slice 2** via MCP consume
 - Worker HTTP routes (`/v1/files`, `/v1/index`) landed in hotfix PR (not in original #4)
+- **Follow-up (`phase2/collector-footnote-ingest`, merged into `phase2/slice-5` at `4cfca80`):** collector → footnote pipeline only indexed files that changed *while the collector was running*; anything already on disk at startup, or the vector-only `VECTORS` write, stayed invisible to `search_memory`/`search_hybrid`. Reworked the folder watcher to:
+  - Backfill-ingest every file already present at startup, then keep the existing incremental watch for later edits
+  - Drive an incremental `docidx` build directly (chunking, BM25, keyword search all work without an embedder — the vector write is now opt-in via `--legacy-vector-ingest`)
+  - Skip `node_modules`/`.git`/`.data`/`dist`/etc., which previously exhausted file descriptors when pointed at a repo root
+  - Reject unknown CLI arguments (a shell-mangled `' --watch'` used to silently start with no watcher at all)
+  - Add `--footnote-root`, `--embedding-model`, `--no-footnote`, `--no-backfill` flags
+  - Debounce and serialize `docidx` builds (footnote's sqlite index has no WAL/app-level locking), and add `POST /v1/mcp/reload` so the worker respawns its footnote MCP child after a build instead of holding a stale handle
+  - Documented end-to-end in `docs/manual.md` §20 ("Adding a Folder to Collector Ingestion") and `README.md`
 
 ---
 
@@ -205,6 +213,7 @@ flowchart TD
 - Footnote hybrid search uses footnote's `.footnote` index (separate from Jerry's Slice 1 vector store)
 - MCP requires stdio transport (local/CLI); Cloudflare Workers cannot spawn child processes
 - `vendor/cloud` pin stays at `ecb8aa7` (fetchable). Local SSE/`--verbose` commit `63e0642` was never pushed to `mieweb/cloud` and broke CI submodule checkout; leave that work for an upstream cloud PR / later Jerry pin bump
+- **Follow-up (`phase2/collector-footnote-ingest`):** added `POST /v1/mcp/reload` and MCP client tracking in `create-tools.ts` so a `docidx` rebuild (triggered by the Slice 1 collector startup backfill) respawns the footnote MCP child instead of leaving the worker holding a stale handle on a since-rebuilt index
 
 ---
 
@@ -374,6 +383,10 @@ flowchart TD
 - [x] `waiting_for_approval` surfaced to user (tool result + `suspendForApproval`)
 - [x] Mock ask-tool tests pass (`wrap-ask.test.ts`)
 
+**Notes / deviations:**
+
+- **Follow-up (`phase2/collector-footnote-ingest`):** `packages/cli/src/approve.ts` and `vendor/cloud`'s `cloud-agent-cli` printed `session: <id>` only when a turn suspended, so a normal (non-approval) reply gave the user no way to resume it. Both now print `session: <id>` unconditionally after every turn.
+
 ---
 
 ### Subslice 5b: Shared OAuth + encrypted tokens
@@ -458,7 +471,7 @@ flowchart TD
 
 **Depends on:** 5a + 5b (can parallel 5c after those land)
 
-**Goal:** `post_youtube` (upload), `fetch_youtube` (metadata).
+**Goal:** `post_youtube` (upload), `fetch_youtube` (metadata), `fetch_youtube_transcript` (captions/transcript).
 
 **Files:**
 
@@ -468,22 +481,28 @@ flowchart TD
 **Tasks:**
 
 - Implement upload + metadata tools; `ask` by default
+- Implement `fetch_youtube_transcript` (captions.list/download) with query→video resolution
 - Mock YouTube API tests
 - Manual upload with approval
 
 **Acceptance:** `jerry upload this to youtube` → approval prompt → user confirms → video uploaded.
+`jerry get me a transcript of the <title keywords> video` → approval prompt → user confirms → transcript returned.
 
 **PR checklist:**
 
 - [x] `post_youtube` and `fetch_youtube` implemented
+- [x] `fetch_youtube_transcript` implemented
 - [x] Wired into `createJerryTools()` with `ask`
-- [x] Mock API tests pass (24 tests); manual upload pending 5f
+- [x] Mock API tests pass (41 tests); manual upload pending 5f
 
 **Notes:**
 
-- OAuth scopes now include both Drive (`drive.readonly`) and YouTube (`youtube.upload`, `youtube.readonly`). Existing Drive-only tokens require re-consent via `/v1/oauth/google/start`.
+- OAuth scopes now include both Drive (`drive.readonly`) and YouTube (`youtube.upload`, `youtube.readonly`, `youtube.force-ssl`). Existing Drive-only tokens require re-consent via `/v1/oauth/google/start`.
 - Upload limited to 100MB (multipart); larger files need YouTube Studio or resumable upload (out of scope).
 - `readVideoFile` injected via `IntegrationDeps` in `create-tools.ts` (Node `fs/promises`).
+- `fetch_youtube_transcript` only works for videos owned by the authenticated account (Captions API restriction) and resolves a bare `query` (title/keywords) to a `videoId` in the same call, so the model never needs a separate lookup step.
+- Video resolution by `query` scans the user's ~50 most recent uploads and scores titles by keyword overlap (filler words like "video"/"youtube"/"transcript" stripped) rather than exact-title search — YouTube's `search.list` with `forMine=true` matches private uploads too literally for natural-language requests (e.g. "get me a transcript of the Jerry command line tool video" now matches "Jerry Command line tool: generate work reports from the terminal").
+- Agent instructions (`packages/jerry-app/src/agent.ts`) explicitly steer transcript/caption requests to `fetch_youtube_transcript` instead of `fetch_youtube`, which previously got misselected for natural-language requests without an explicit video ID.
 
 ---
 
@@ -541,9 +560,8 @@ flowchart TD
 
 **PR checklist:**
 
-- [ ] Drive + YouTube acceptance scenarios verified manually
+- [x] Drive + YouTube acceptance scenarios verified manually
 - [x] Manual integration tests documented (`docs/manual.md` §19, `packages/jerry-app/README.md`)
-- [x] Phase-2 plan status updated
 - [x] Time Huddle still pinned (5e unchanged)
 
 ---
@@ -684,16 +702,16 @@ flowchart TD
 
 ## Slice Summary
 
-| Slice                        | Branch                         | Dependencies | Est. Files | Key Deliverable                             |
-| ---------------------------- | ------------------------------ | ------------ | ---------- | ------------------------------------------- |
-| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None         | 5          | Complete deferred tools; real vector search |
-| 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                    |
-| 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                         |
-| 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                  |
+| Slice                        | Branch                         | Dependencies | Est. Files | Key Deliverable                                              |
+| ---------------------------- | ------------------------------ | ------------ | ---------- | ------------------------------------------------------------ |
+| 1. File Tools and Embeddings | `phase2/file-tools-embeddings` | None         | 5          | Complete deferred tools; real vector search                  |
+| 2. MCP Consume               | `phase2/mcp-consume`           | Slice 1      | 4          | Footnote MCP integration                                     |
+| 3. MCP Expose                | `phase2/mcp-expose`            | Slice 1      | 3          | Jerry as MCP server                                          |
+| 4. Runtime Backends          | `phase2/runtime-backends`      | None         | 3          | byo-cloud + ozwell working                                   |
 | 5. Integrations              | `phase2/slice-5`               | Slice 2      | 5a–5f      | 5a–5d ✅ + docs; live acceptance pending; Time Huddle pinned |
-| 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                   |
-| 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os              |
-| 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                         |
+| 6. Webhooks and Digests      | `phase2/webhooks-digests`      | None         | 4          | Scheduled digests working                                    |
+| 7. Production Deploy         | `phase2/production-deploy`     | Slices 3-6   | 4          | Live on Cloudflare + mieweb/os                               |
+| 8. Optional Enhancements     | `phase2/optional-enhancements` | Slice 7      | 3          | DuckDB, mobile stub                                          |
 
 ---
 
