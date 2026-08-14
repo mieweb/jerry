@@ -17,6 +17,18 @@
     "./mcp": {
       "types": "./src/mcp/index.ts",
       "default": "./src/mcp/index.ts"
+    },
+    "./integrations/oauth": {
+      "types": "./src/integrations/oauth.ts",
+      "default": "./src/integrations/oauth.ts"
+    },
+    "./integrations/drive": {
+      "types": "./src/integrations/drive.ts",
+      "default": "./src/integrations/drive.ts"
+    },
+    "./integrations/youtube": {
+      "types": "./src/integrations/youtube.ts",
+      "default": "./src/integrations/youtube.ts"
     }
   },
   "scripts": {

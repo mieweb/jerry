@@ -9,6 +9,13 @@
 export interface IngestConfig {
   /** Jerry API base URL (default: http://127.0.0.1:8787) */
   jerryUrl?: string;
+  /**
+   * Embed the content into the VECTORS store via POST /v1/index (default: true).
+   *
+   * Footnote-backed collectors keep the bucket upload (so read_file still
+   * resolves) but skip this, because footnote owns the searchable index.
+   */
+  index?: boolean;
 }
 
 export interface IngestResult {
@@ -32,6 +39,7 @@ export async function ingestFile(
   config: IngestConfig = {}
 ): Promise<IngestResult> {
   const jerryUrl = config.jerryUrl ?? "http://127.0.0.1:8787";
+  const shouldIndexContent = config.index ?? true;
 
   try {
     // Step 1: Upload file content to bucket storage
@@ -52,6 +60,10 @@ export async function ingestFile(
     }
 
     const uploaded = uploadResponse.ok;
+
+    if (!shouldIndexContent) {
+      return { success: true, uploaded, indexed: false };
+    }
 
     // Step 2: Trigger indexing
     const indexResponse = await fetch(`${jerryUrl}/v1/index`, {
@@ -102,4 +114,19 @@ export function shouldIndex(
 ): boolean {
   const textExtensions = [".txt", ".md", ".json", ".csv", ".xml", ".html", ".yaml", ".yml"];
   return textExtensions.includes(extension.toLowerCase()) && size <= maxSize;
+}
+
+/**
+ * Extensions footnote's docidx parser understands.
+ *
+ * Mirrors INDEXABLE_EXTENSIONS in vendor/footnote/src/utils/files.ts — anything
+ * outside this set is skipped by the indexer, so there is no point rebuilding.
+ */
+export const FOOTNOTE_EXTENSIONS = [".md", ".txt", ".pdf", ".docx", ".xml"];
+
+/**
+ * Check whether a change to this file could affect the footnote index.
+ */
+export function isFootnoteIndexable(extension: string): boolean {
+  return FOOTNOTE_EXTENSIONS.includes(extension.toLowerCase());
 }

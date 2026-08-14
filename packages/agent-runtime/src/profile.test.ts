@@ -11,8 +11,8 @@ describe("DEFAULT_PRIVACY_PROFILE", () => {
     assert.equal(DEFAULT_PRIVACY_PROFILE.runtime, "local");
   });
 
-  it("uses ollama:qwen2.5 model", () => {
-    assert.equal(DEFAULT_PRIVACY_PROFILE.model, "ollama:qwen2.5");
+  it("uses ollama:llama3.1:8b model", () => {
+    assert.equal(DEFAULT_PRIVACY_PROFILE.model, "ollama:llama3.1:8b");
   });
 
   it("denies egress by default", () => {
@@ -31,8 +31,10 @@ describe("DEFAULT_PRIVACY_PROFILE", () => {
       search_fts: "local",
       search_literal: "local",
       read_document: "local",
-      drive: "ask",
-      youtube: "ask",
+      read_drive: "ask",
+      post_youtube: "ask",
+      fetch_youtube: "ask",
+      fetch_youtube_transcript: "ask",
     });
   });
 });

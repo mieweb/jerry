@@ -75,6 +75,9 @@ importers:
       '@mieweb/jerry-agent-runtime':
         specifier: workspace:*
         version: link:../agent-runtime
+      '@mieweb/jerry-cli':
+        specifier: workspace:*
+        version: link:../cli
       '@mieweb/jerry-tools':
         specifier: workspace:*
         version: link:../tools

@@ -10,7 +10,12 @@
 
   // Database: events, sessions, messages, summaries
   "d1_databases": [
-    { "binding": "DB", "database_name": "mieweb-jerry", "database_id": "local-mieweb-jerry" }
+    {
+      "binding": "DB",
+      "database_name": "mieweb-jerry",
+      "database_id": "local-mieweb-jerry",
+      "migrations_dir": "packages/jerry-app/migrations"
+    }
   ],
 
   // Cache: temporary storage
